@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <mpi.h>
 #include <omp.h>
+
 #include "point.h"
 #include "proximity_utils.h"
 #include "cuda_utils.h"

@@ -25,7 +25,8 @@ int main(int argc, char* argv[]) {
         // Master process reads input data and sends work to workers
         int N, K, tCount;
         double D;
-        Point* points;
+        Point* points = NULL;
+        double* tValues = NULL;
 
         readInputData("input.txt", &N, &K, &D, &tCount, &points);
 

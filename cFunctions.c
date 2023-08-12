@@ -1,8 +1,18 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 #include "point.h"
-#include "proximity_utils.h"
+
+// Function to calculate coordinates (x, y) for a point P given t
+void calculateCoordinates(Point* point, double t, double* x, double* y) {
+    *x = ((point->x2 - point->x1) / 2) * sin(t * M_PI / 2) + (point->x2 + point->x1) / 2;
+    *y = point->a * (*x) + point->b;
+}
 
 /**
  * Test the computed coordinates against expected coordinates for each point and t value.

@@ -149,7 +149,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Combine results from all processes and write to the output file
-        if (!writeResults(collectedResults, N, tValues, tCount)) {
+        if (!writeResults("Output.txt", collectedResults, N, tValues, tCount)) {
             fprintf(stderr, "Error writing results to output file\n");
             free(points);
             free(tValues);

@@ -8,6 +8,7 @@
 #include "cuda_utils.h"
 
 #define FILENAME "InputZONA.txt"
+#define MASTER 0
 
 int main(int argc, char* argv[]) {
     // Initialize MPI
@@ -21,7 +22,7 @@ int main(int argc, char* argv[]) {
         MPI_Abort(MPI_COMM_WORLD, __LINE__); // Abort MPI execution
     }
 
-    if (rank == 0) {
+    if (rank == MASTER) {
         // Master process reads input data and sends work to workers
         int N, K, tCount;
         double D;
@@ -34,11 +35,24 @@ int main(int argc, char* argv[]) {
             MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
         }
 
+        // Generate t values using dynamic memory allocation
+        tValues = (double*)malloc((tCount + 1) * sizeof(double));
+        if (tValues == NULL) {
+            fprintf(stderr, "Memory allocation error\n");
+            free(points);
+            MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
+        }
+
+        for (int i = 0; i <= tCount; i++) {
+            tValues[i] = 2.0 * i / tCount - 1;
+        }
+
         // Distribute input points and t values to workers
         // Use MPI_Send and MPI_Recv for communication
         
         // Free allocated memory
         free(points);
+        free(tValues);
     } else if (rank == 1) {
         // Worker process
         int N;

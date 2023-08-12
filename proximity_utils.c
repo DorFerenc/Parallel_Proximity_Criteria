@@ -98,55 +98,99 @@ int writeResults(const char* filename, SatisfiedInfo** satisfiedInfos, int numWo
         return 0;
     }
 
-    int foundCount = 0; // Counter to keep track of how many sets of 3 points were found
+    int foundCount = 0; 
 
     // Loop through each t value and each worker
     for (int j = 0; j <= tCount; j++) {
         for (int worker = 0; worker < numWorkers; worker++) {
-            if (satisfiedInfos[worker][j].t != DBL_MAX) {
-                char message[1024] = ""; // Initialize an empty string message
+            if (satisfiedInfos[worker][j].t != DBL_MAX && satisfiedInfos[worker][j].satisfiedIndices[0] != -1) {
+                char message[1024] = ""; 
                 int messageLength = 0;
 
-                // Check if the first satisfied index is not -1 (meaning there are satisfied points)
-                if (satisfiedInfos[worker][j].satisfiedIndices[0] != -1) {
-                    messageLength += snprintf(message + messageLength, sizeof(message) - messageLength, "Points");
-                    int sumIndices = 0;
+                messageLength += snprintf(message + messageLength, sizeof(message) - messageLength, "Points");
+                int sumIndices = 0;
 
-                    // Iterate through the satisfied indices of a specific t and worker
-                    for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
-                        int idx = satisfiedInfos[worker][j].satisfiedIndices[k];
-                        if (idx != -1) {
-                            messageLength += snprintf(message + messageLength, sizeof(message) - messageLength, " pointID%d", idx);
-                            sumIndices += idx;
-                            // fprintf(file, " pointID%d", idx);
-                        }
+                for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
+                    int idx = satisfiedInfos[worker][j].satisfiedIndices[k];
+                    if (idx != -1) {
+                        messageLength += snprintf(message + messageLength, sizeof(message) - messageLength, " pointID%d", idx);
+                        sumIndices += idx;
                     }
+                }
 
-                    // Check if the sum of satisfied indices is not -1 * MAX_NUM_SATISFIED_POINTS
-                    if (sumIndices != (-1 * MAX_NUM_SATISFIED_POINTS)) {
-                        messageLength += snprintf(message + messageLength, sizeof(message) - messageLength, " satisfy Proximity Criteria at t = %.6f\n", satisfiedInfos[worker][j].t);
-                        fprintf(file, "%s", message);
-                        foundCount++;
-                    }
-                    //Check if the sum of satisfied indices is not -1 * MAX_NUM_SATISFIED_POINTS
-                    // if (satisfiedInfos[worker][j].t != DBL_MAX) {
-                    //     messageLength += snprintf(message + messageLength, sizeof(message) - messageLength, " satisfy Proximity Criteria at t = %.6f\n", satisfiedInfos[worker][j].t);
-                    //     fprintf(file, "%s", message);
-                    //     foundCount++;
-                    // }
+                if (sumIndices != (-1 * MAX_NUM_SATISFIED_POINTS)) {
+                    messageLength += snprintf(message + messageLength, sizeof(message) - messageLength, " satisfy Proximity Criteria at t = %.6f\n", satisfiedInfos[worker][j].t);
+                    fprintf(file, "%s", message);
+                    foundCount++;
                 }
             }
         }
     }
 
-    // If no points were found for any t
     if (foundCount == 0) {
         fprintf(file, "There were no %d points found for any t.\n", MAX_NUM_SATISFIED_POINTS);
     }
 
     fclose(file);
-    return 1; // Writing successful
+    return 1; 
 }
+
+// int writeResults(const char* filename, SatisfiedInfo** satisfiedInfos, int numWorkers, int N, double* tValues, int tCount) {
+//     FILE* file = fopen(filename, "w");
+//     if (file == NULL) {
+//         fprintf(stderr, "Error opening output file\n");
+//         return 0;
+//     }
+
+//     int foundCount = 0; // Counter to keep track of how many sets of 3 points were found
+
+//     // Loop through each t value and each worker
+//     for (int j = 0; j <= tCount; j++) {
+//         for (int worker = 0; worker < numWorkers; worker++) {
+//             if (satisfiedInfos[worker][j].t != DBL_MAX) {
+//                 char message[1024] = ""; // Initialize an empty string message
+//                 int messageLength = 0;
+
+//                 // Check if the first satisfied index is not -1 (meaning there are satisfied points)
+//                 if (satisfiedInfos[worker][j].satisfiedIndices[0] != -1) {
+//                     messageLength += snprintf(message + messageLength, sizeof(message) - messageLength, "Points");
+//                     int sumIndices = 0;
+
+//                     // Iterate through the satisfied indices of a specific t and worker
+//                     for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
+//                         int idx = satisfiedInfos[worker][j].satisfiedIndices[k];
+//                         if (idx != -1) {
+//                             messageLength += snprintf(message + messageLength, sizeof(message) - messageLength, " pointID%d", idx);
+//                             sumIndices += idx;
+//                             // fprintf(file, " pointID%d", idx);
+//                         }
+//                     }
+
+//                     // Check if the sum of satisfied indices is not -1 * MAX_NUM_SATISFIED_POINTS
+//                     if (sumIndices != (-1 * MAX_NUM_SATISFIED_POINTS)) {
+//                         messageLength += snprintf(message + messageLength, sizeof(message) - messageLength, " satisfy Proximity Criteria at t = %.6f\n", satisfiedInfos[worker][j].t);
+//                         fprintf(file, "%s", message);
+//                         foundCount++;
+//                     }
+//                     //Check if the sum of satisfied indices is not -1 * MAX_NUM_SATISFIED_POINTS
+//                     // if (satisfiedInfos[worker][j].t != DBL_MAX) {
+//                     //     messageLength += snprintf(message + messageLength, sizeof(message) - messageLength, " satisfy Proximity Criteria at t = %.6f\n", satisfiedInfos[worker][j].t);
+//                     //     fprintf(file, "%s", message);
+//                     //     foundCount++;
+//                     // }
+//                 }
+//             }
+//         }
+//     }
+
+//     // If no points were found for any t
+//     if (foundCount == 0) {
+//         fprintf(file, "There were no %d points found for any t.\n", MAX_NUM_SATISFIED_POINTS);
+//     }
+
+//     fclose(file);
+//     return 1; // Writing successful
+//}
 
 
 // int writeResults(const char* filename, int tCount, double* tValues, Point* points, int N, int K, double D) {

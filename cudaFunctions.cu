@@ -15,28 +15,28 @@ __global__ void computeCoordinatesKernel(Point* points, int numPoints, double* t
 
     if (idx >= numPoints) return;
     if (idx < numPoints) {
-        // Point* p = &points[idx];
+        Point* p = &points[idx];
         for (int i = 0; i < tCount; i++) {
             double t = (tValues[i]);
-            // Get the point parameters.
-            double x1 = points[idx].x1;
-            double x2 = points[idx].x2;
-            double a = points[idx].a;
-            double b = points[idx].b;
+            // // Get the point parameters.
+            // double x1 = points[idx].x1;
+            // double x2 = points[idx].x2;
+            // double a = points[idx].a;
+            // double b = points[idx].b;
 
-            // Compute the x and y coordinates.
-            // double x = ((x2 - x1) / 2) * sin(t * M_PI / 2) + (x2 + x1) / 2;
-            double x = (((x2 - x1) / 2) * sin(t * M_PI / 2) + (x2 + x1) / 2);
-            double y = a * x + b;
+            // // Compute the x and y coordinates.
+            // // double x = ((x2 - x1) / 2) * sin(t * M_PI / 2) + (x2 + x1) / 2;
+            // double x = (((x2 - x1) / 2) * sin(t * M_PI / 2) + (x2 + x1) / 2);
+            // double y = a * x + b;
 
-            // Store the coordinates in the point.
-            points[idx].x = x;
-            points[idx].y = y;
+            // // Store the coordinates in the point.
+            // points[idx].x = x;
+            // points[idx].y = y;
 
             // p->x[i] = ((p->x2 - p->x1) / 2.0) * sin(t * M_PI / 2.0) + (p->x2 + p->x1) / 2.0;
             // p->y[i] = p->a * p->x[i] + p->b;
-            p[i].x = ((p->x2 - p->x1) / 2.0) * sin(t * M_PI / 2.0) + (p->x2 + p->x1) / 2.0;
-            p[i].y = p->a * p[i].x + p->b;;
+            p[idx].x = ((p->x2 - p->x1) / 2.0) * sin(t * M_PI / 2.0) + (p->x2 + p->x1) / 2.0;
+            p[idx].y = p->a * p[i].x + p->b;;
         }
     }
 }

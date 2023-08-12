@@ -79,16 +79,17 @@ int checkProximityCriteria(Point point, Point* points, int N, int K, double D, d
 }
 
 /**
- * Write results to the output file.
+ * Write results to the output file in the specified format.
  *
  * @param filename Name of the output file.
- * @param points Array of points containing the results.
- * @param N Number of points in the array.
+ * @param satisfiedInfos Array of arrays of SatisfiedInfo structs containing information about satisfied points.
+ * @param numWorkers Number of worker processes.
+ * @param N Total number of points in the dataset.
  * @param tValues Array of t values.
  * @param tCount Number of t values.
  * @return 1 if writing was successful, 0 if there was an error.
  */
-int writeResults(const char* filename, Point* points, int N, double* tValues, int tCount) {
+int writeResults(const char* filename, SatisfiedInfo** satisfiedInfos, int numWorkers, int N, double* tValues, int tCount) {
     FILE* file = fopen(filename, "w");
     if (file == NULL) {
         fprintf(stderr, "Error opening output file\n");
@@ -97,33 +98,45 @@ int writeResults(const char* filename, Point* points, int N, double* tValues, in
 
     int foundCount = 0; // Counter to keep track of how many sets of 3 points were found
 
-    for (int j = 0; j < tCount; j++) {
-        int foundForT = 0; // Counter to keep track of how many sets of 3 points were found for this t value
+    for (int j = 0; j <= tCount; j++) {
+        for (int worker = 0; worker < numWorkers; worker++) {
+            char message[1024] = ""; // Initialize an empty string message
+            int messageLength = 0;
 
-        for (int i = 0; i < N; i++) {
-            if (points[i].results[j]) {
-                if (foundForT == 0) {
-                    fprintf(file, "Points");
+            if (satisfiedInfos[worker][j].satisfiedIndices[0] != -1) {
+                messageLength += snprintf(message + messageLength, sizeof(message) - messageLength, "Points");
+                int sumIndices = 0;
+
+                // fprintf(file, "Points");
+                for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
+                    int idx = satisfiedInfos[worker][j].satisfiedIndices[k];
+                    if (idx != -1) {
+                        messageLength += snprintf(message + messageLength, sizeof(message) - messageLength, " pointID%d", idx);
+                        sumIndices += idx;
+                        // fprintf(file, " pointID%d", idx);
+                    }
                 }
-                fprintf(file, " pointID%d", points[i].id);
-                foundForT++;
+                // fprintf(file, " satisfy Proximity Criteria at t = %.6f\n", satisfiedInfos[worker][j].t);
+                // foundCount++;
 
-                if (foundForT == 3) {
-                    fprintf(file, " satisfy Proximity Criteria at t = %.6f\n", tValues[j]);
+                if (sumIndices != (-1 * MAX_NUM_SATISFIED_POINTS)) {
+                    messageLength += snprintf(message + messageLength, sizeof(message) - messageLength, " satisfy Proximity Criteria at t = %.6f\n", satisfiedInfos[worker][j].t);
+                    fprintf(file, "%s", message);
                     foundCount++;
-                    foundForT = 0; // Reset counter for the next set of points
                 }
             }
         }
     }
 
+    // If no points were found for any t
     if (foundCount == 0) {
-        fprintf(file, "There were no 3 points found for any t.\n");
+        fprintf(file, "There were no %d points found for any t.\n", MAX_NUM_SATISFIED_POINTS);
     }
 
     fclose(file);
-    return 1;
+    return 1; // Writing successful
 }
+
 
 // int writeResults(const char* filename, int tCount, double* tValues, Point* points, int N, int K, double D) {
 //     /*

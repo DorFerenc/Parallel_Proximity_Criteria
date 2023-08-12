@@ -1,5 +1,7 @@
 #pragma once
 
+#define MAX_NUM_SATISFIED_POINTS 3
+
 typedef struct {
     int id;
     double x1, x2, a, b;

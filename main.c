@@ -11,7 +11,6 @@
 #define FILENAME "InputSmall.txt"
 #define MASTER 0
 #define SHOULD_TEST 1
-#define MAX_NUM_SATISFIED_POINTS 3
 
 int main(int argc, char* argv[]) {
     // Initialize MPI
@@ -118,6 +117,7 @@ int main(int argc, char* argv[]) {
     if (SHOULD_TEST)
         testCoordinates(points_orig, points, numPointsPerWorker, tValues, tCount); // Test the computed coordinates against expected coordinates 
     
+    SatisfiedInfo satisfiedInfos[tCount + 1]; // Create an array to hold satisfiedInfos
     #pragma omp parallel for shared(points, numPointsPerWorker, K, D, tValues, satisfiedInfos) private(t)
     for (int j = 0; j <= tCount; j++) {
         t = tValues[j];
@@ -146,23 +146,72 @@ int main(int argc, char* argv[]) {
     if (rank != MASTER)
         MPI_Send(satisfiedInfos, tCount * sizeof(SatisfiedInfo), MPI_BYTE, MASTER, 0, MPI_COMM_WORLD);  // Send the satisfiedInfos array to the master
     else {
-        SatisfiedInfo collectedSatisfiedInfos[size][tCount]; // Create an array to collect satisfiedInfos from workers
-
-        // Receive satisfiedInfos from worker processes
-        for (int i = 1; i < size; i++)
-            MPI_Recv(&collectedSatisfiedInfos[i], tCount * sizeof(SatisfiedInfo), MPI_BYTE, i, 0, MPI_COMM_WORLD, &status);
-
-        // Combine results from all processes and write to the output file
-        if (!writeResults("Output.txt", collectedResults, N, tValues, tCount)) {
-            fprintf(stderr, "Error writing results to output file\n");
+        SatisfiedInfo** collectedSatisfiedInfos = (SatisfiedInfo**)malloc(size * sizeof(SatisfiedInfo*));
+        if (collectedSatisfiedInfos == NULL) {
+            fprintf(stderr, "Memory allocation error\n");
             free(points);
             free(tValues);
-            free(collectedResults);
             MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
         }
 
-        free(collectedResults); 
+        for (int i = 0; i < size; i++) {
+            collectedSatisfiedInfos[i] = (SatisfiedInfo*)malloc((tCount + 1) * sizeof(SatisfiedInfo));
+            if (collectedSatisfiedInfos[i] == NULL) {
+                fprintf(stderr, "Memory allocation error\n");
+                // Free previously allocated memory
+                for (int j = 0; j < i; j++) {
+                    free(collectedSatisfiedInfos[j]);
+                }
+                free(collectedSatisfiedInfos);
+                free(points);
+                free(tValues);
+                MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
+            }
+        }
+
+        // Receive satisfiedInfos from worker processes
+        for (int i = 1; i < size; i++) {
+            MPI_Recv(collectedSatisfiedInfos[i], (tCount + 1) * sizeof(SatisfiedInfo), MPI_BYTE, i, 0, MPI_COMM_WORLD, &status);
+        }
+
+        // Combine results from all processes and write to the output file
+        if (!writeResults("Output.txt", collectedSatisfiedInfos, N, tValues, tCount)) {
+            fprintf(stderr, "Error writing results to output file\n");
+            // Free allocated memory
+            for (int i = 0; i < size; i++) {
+                free(collectedSatisfiedInfos[i]);
+            }
+            free(collectedSatisfiedInfos);
+            free(points);
+            free(tValues);
+            MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
+        }
+
+        // Free allocated memory
+        for (int i = 0; i < size; i++) {
+            free(collectedSatisfiedInfos[i]);
+        }
+        free(collectedSatisfiedInfos);
     }
+
+    // else {
+    //     SatisfiedInfo collectedSatisfiedInfos[size][tCount]; // Create an array to collect satisfiedInfos from workers
+
+    //     // Receive satisfiedInfos from worker processes
+    //     for (int i = 1; i < size; i++)
+    //         MPI_Recv(&collectedSatisfiedInfos[i], tCount * sizeof(SatisfiedInfo), MPI_BYTE, i, 0, MPI_COMM_WORLD, &status);
+
+    //     // Combine results from all processes and write to the output file
+    //     if (!writeResults("Output.txt", collectedResults, N, tValues, tCount)) {
+    //         fprintf(stderr, "Error writing results to output file\n");
+    //         free(points);
+    //         free(tValues);
+    //         free(collectedResults);
+    //         MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
+    //     }
+
+    //     free(collectedResults); 
+    // }
 
     // Free allocated memory
     free(points);

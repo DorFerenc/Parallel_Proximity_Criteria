@@ -152,7 +152,7 @@ int main(int argc, char* argv[]) {
     
     SatisfiedInfo satisfiedInfos[tCount + 1]; // Create an array to hold satisfiedInfos
     for (int j = 0; j <= tCount; j++) {
-        satisfiedInfos[j].t = -1; // Initialize t value
+        satisfiedInfos[j].t = -1.0; // Initialize t value
         for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
             satisfiedInfos[j].satisfiedIndices[k] = -1; // Initialize satisfiedIndices to -1
         }
@@ -200,32 +200,74 @@ int main(int argc, char* argv[]) {
     //     }
     // }
 
+    // // Perform Parallel Proximity Criteria Check using OpenMP
+    // #pragma omp parallel for shared(points, numPointsPerWorker, K, D, tValues, satisfiedInfos, workerPointsTcount) private(t)
+    // for (int j = 0; j <= tCount; j++) {
+    //     t = tValues[j];
+    //     int currentPCPointsFound = 0;
+    //     //int satisfiedIndices[MAX_NUM_SATISFIED_POINTS] = {-1}; // Array to store satisfied indices
+        
+    //     // Iterate through each point and perform Proximity Criteria check
+    //     for (int i = 0; i < (numPointsPerWorker * tCount); i++) {
+    //         int result = checkProximityCriteria(workerPointsTcount[i], workerPointsTcount, (numPointsPerWorker * tCount), K, D, t);
+
+    //         // Update satisfiedIndices if the current point satisfies Proximity Criteria
+    //         #pragma omp critical
+    //         {
+    //             if (result) {
+    //                 // int alreadyAdded = 0;
+    //                 for (int k = 0; k < currentPCPointsFound; k++) {
+    //                     if (satisfiedInfos[j].satisfiedIndices[k] == workerPointsTcount[i].id) {
+    //                         //alreadyAdded = 1;
+    //                         break;
+    //                     } else {
+    //                         satisfiedInfos[j].t = t;
+    //                         satisfiedInfos[j].satisfiedIndices[currentPCPointsFound] = workerPointsTcount[i].id;
+    //                         currentPCPointsFound++;
+    //                     }
+    //                 }
+    //             }
+    //         }
+            
+    //         if (currentPCPointsFound >= MAX_NUM_SATISFIED_POINTS) {
+    //             break; // Three points satisfying Proximity Criteria found, exit loop
+    //         }
+    //     }
+        
+    //     // // Update satisfiedInfos with the found indices
+    //     // #pragma omp critical
+    //     // {
+    //     //     satisfiedInfos[j].t = t;
+    //     //     for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
+    //     //         satisfiedInfos[j].satisfiedIndices[k] = satisfiedIndices[k];
+    //     //     }
+    //     // }
+    // }
+
     // Perform Parallel Proximity Criteria Check using OpenMP
     #pragma omp parallel for shared(points, numPointsPerWorker, K, D, tValues, satisfiedInfos, workerPointsTcount) private(t)
     for (int j = 0; j <= tCount; j++) {
         t = tValues[j];
         int currentPCPointsFound = 0;
-        //int satisfiedIndices[MAX_NUM_SATISFIED_POINTS] = {-1}; // Array to store satisfied indices
+        int satisfiedIndices[MAX_NUM_SATISFIED_POINTS] = {-1}; // Array to store satisfied indices
         
         // Iterate through each point and perform Proximity Criteria check
         for (int i = 0; i < (numPointsPerWorker * tCount); i++) {
             int result = checkProximityCriteria(workerPointsTcount[i], workerPointsTcount, (numPointsPerWorker * tCount), K, D, t);
 
             // Update satisfiedIndices if the current point satisfies Proximity Criteria
-            #pragma omp critical
-            {
-                if (result) {
-                    // int alreadyAdded = 0;
-                    for (int k = 0; k < currentPCPointsFound; k++) {
-                        if (satisfiedInfos[j].satisfiedIndices[k] == workerPointsTcount[i].id) {
-                            //alreadyAdded = 1;
-                            break;
-                        } else {
-                            satisfiedInfos[j].t = t;
-                            satisfiedInfos[j].satisfiedIndices[currentPCPointsFound] = workerPointsTcount[i].id;
-                            currentPCPointsFound++;
-                        }
+            if (result) {
+                int pointID = workerPointsTcount[i].id;
+                int alreadyAdded = 0;
+                for (int k = 0; k < currentPCPointsFound; k++) {
+                    if (satisfiedIndices[k] == pointID) {
+                        alreadyAdded = 1;
+                        break;
                     }
+                }
+                if (!alreadyAdded) {
+                    satisfiedIndices[currentPCPointsFound] = pointID;
+                    currentPCPointsFound++;
                 }
             }
             
@@ -234,15 +276,23 @@ int main(int argc, char* argv[]) {
             }
         }
         
-        // // Update satisfiedInfos with the found indices
-        // #pragma omp critical
-        // {
-        //     satisfiedInfos[j].t = t;
-        //     for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
-        //         satisfiedInfos[j].satisfiedIndices[k] = satisfiedIndices[k];
-        //     }
-        // }
+        // Update satisfiedInfos with the found indices
+        if (currentPCPointsFound == MAX_NUM_SATISFIED_POINTS) {
+            #pragma omp critical
+            {
+                satisfiedInfos[j].t = t;
+                for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
+                    satisfiedInfos[j].satisfiedIndices[k] = satisfiedIndices[k];
+                }
+            }
+        } else {
+            #pragma omp critical
+            {
+                satisfiedInfos[j].t = -1.0;
+            }
+        }
     }
+
 
     for (int i = 0; i < (numPointsPerWorker * tCount); i++) {
         printf("rank: %d, satisfiedInfos[%d].t: %lf\n", rank, i, satisfiedInfos[i].t);

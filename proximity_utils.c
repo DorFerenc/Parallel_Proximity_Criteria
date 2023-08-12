@@ -119,8 +119,14 @@ int writeResults(const char* filename, SatisfiedInfo** satisfiedInfos, int numWo
                     }
                 }
 
-                // Check if the sum of satisfied indices is not -1 * MAX_NUM_SATISFIED_POINTS
-                if (sumIndices != (-1 * MAX_NUM_SATISFIED_POINTS)) {
+                // // Check if the sum of satisfied indices is not -1 * MAX_NUM_SATISFIED_POINTS
+                // if (sumIndices != (-1 * MAX_NUM_SATISFIED_POINTS)) {
+                //     messageLength += snprintf(message + messageLength, sizeof(message) - messageLength, " satisfy Proximity Criteria at t = %.6f\n", satisfiedInfos[worker][j].t);
+                //     fprintf(file, "%s", message);
+                //     foundCount++;
+                // }
+                 // Check if the sum of satisfied indices is not -1 * MAX_NUM_SATISFIED_POINTS
+                if (satisfiedInfos[worker][j].t != -1.0) {
                     messageLength += snprintf(message + messageLength, sizeof(message) - messageLength, " satisfy Proximity Criteria at t = %.6f\n", satisfiedInfos[worker][j].t);
                     fprintf(file, "%s", message);
                     foundCount++;

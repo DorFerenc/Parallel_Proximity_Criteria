@@ -118,6 +118,13 @@ int main(int argc, char* argv[]) {
         testCoordinates(points_orig, points, numPointsPerWorker, tValues, tCount); // Test the computed coordinates against expected coordinates 
     
     SatisfiedInfo satisfiedInfos[tCount + 1]; // Create an array to hold satisfiedInfos
+    for (int j = 0; j <= tCount; j++) {
+        satisfiedInfos[j].t = 0.0; // Initialize t value
+        for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
+            satisfiedInfos[j].satisfiedIndices[k] = -1; // Initialize satisfiedIndices to -1
+        }
+    }
+
     #pragma omp parallel for shared(points, numPointsPerWorker, K, D, tValues, satisfiedInfos) private(t)
     for (int j = 0; j <= tCount; j++) {
         t = tValues[j];
@@ -130,8 +137,8 @@ int main(int argc, char* argv[]) {
             // Update satisfiedInfos if the current point satisfies Proximity Criteria
             if (result) {
                 if (currentPCPointsFound == 0)
-                    satisfiedInfos[j].t = t // Update t value
-                satisfiedInfos.satisfiedIndices[currentPCPointsFound] = i // Insert point's index in the list
+                    satisfiedInfos[j].t = t; // Update t value
+                satisfiedInfos[j].satisfiedIndices[currentPCPointsFound] = i; // Insert point's index in the list
                 currentPCPointsFound++;
             }
             if (currentPCPointsFound >= MAX_NUM_SATISFIED_POINTS)
@@ -174,8 +181,8 @@ int main(int argc, char* argv[]) {
             MPI_Recv(collectedSatisfiedInfos[i], (tCount + 1) * sizeof(SatisfiedInfo), MPI_BYTE, i, 0, MPI_COMM_WORLD, &status);
         }
 
-        // Combine results from all processes and write to the output file
-        if (!writeResults("Output.txt", collectedSatisfiedInfos, N, tValues, tCount)) {
+         // Combine results from all processes and write to the output file
+        if (!writeResults("Output.txt", collectedSatisfiedInfos, size, N, tValues, tCount)) {
             fprintf(stderr, "Error writing results to output file\n");
             // Free allocated memory
             for (int i = 0; i < size; i++) {

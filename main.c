@@ -12,6 +12,25 @@
 #define MASTER 0
 #define SHOULD_TEST 0
 
+void printValues(int rank, Point* points, int numPointsPerWorker, double* tValues, int tCount) {
+    printf("Rank: %d\n", rank);
+    
+    printf("Points:\n");
+    for (int i = 0; i < numPointsPerWorker; i++) {
+        printf("Point %d: x1 = %.2f, x2 = %.2f\n", i, points[i].x1, points[i].x2);
+        printf("Point %d: a = %.2f, b = %.2f\n", i, points[i].a, points[i].b);
+        printf("Point %d: x = %.2f, y = %.2f\n", i, points[i].x, points[i].y);
+        points[i].x = 3.0;
+        points[i].y = 6.0;
+        printf("CHANGED Point %d: x = %.2f, y = %.2f\n", i, points[i].x, points[i].y);
+    }
+
+    // printf("tValues:\n");
+    // for (int i = 0; i <= tCount; i++) {
+    //     printf("t[%d] = %.6f\n", i, tValues[i]);
+    // }
+}
+
 int main(int argc, char* argv[]) {
     // Initialize MPI
     int rank, size;
@@ -108,6 +127,8 @@ int main(int argc, char* argv[]) {
         memcpy(points_orig, points, numPointsPerWorker * sizeof(Point));
     }
 
+    printValues(rank, points, numPointsPerWorker, tValues, tCount); // TODO df delete this
+    fprintf(stderr, "rank: %d, tCount: %d\n", rank, tCount);
     // Perform GPU-accelerated computation using CUDA
     if (!performGPUComputation(points, numPointsPerWorker, tValues, tCount)) {
         fprintf(stderr, "Error performing GPU computation\n");

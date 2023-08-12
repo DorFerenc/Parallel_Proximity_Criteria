@@ -27,6 +27,7 @@ __global__ void computeCoordinatesKernel(Point* points, int numPoints, double* t
 
 int performGPUComputation(Point* points, int numPoints, double* tValues, int tCount) {
     Point* d_points = NULL;
+    cudaError_t cudaStatus;
 
     // Allocate GPU memory for points
     cudaStatus = cudaMalloc((void**)&d_points, numPoints * sizeof(Point));

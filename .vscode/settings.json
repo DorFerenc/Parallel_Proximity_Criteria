@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "proximity_utils.h": "c"
+        "proximity_utils.h": "c",
+        "atomic": "c"
     }
 }

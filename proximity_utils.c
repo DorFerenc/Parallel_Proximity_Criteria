@@ -66,7 +66,7 @@ int readInputData(const char* filename, int* N, int* K, double* D, int* tCount, 
 int checkProximityCriteria(FinalPoint point, FinalPoint* points, int N, int K, double D, double t) {
     int closePoints = 0;
 
-    #pragma omp parallel for reduction(+:closePoints)
+    //#pragma omp parallel for reduction(+:closePoints)
     for (int i = 0; i < N; i++) {
         if (i != point.id) {
             double distance = sqrt((point.x - points[i].x) * (point.x - points[i].x) +
@@ -78,6 +78,16 @@ int checkProximityCriteria(FinalPoint point, FinalPoint* points, int N, int K, d
     }
 
     return closePoints >= K;
+}
+
+// Function to check if a point ID already exists in an array
+int isPointIDAlreadyAdded(int pointID, int *satisfiedIndices, int foundIndices) {
+    for (int k = 0; k < foundIndices; k++) {
+        if (satisfiedIndices[k] == pointID) {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 /**

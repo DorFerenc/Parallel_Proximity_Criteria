@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <mpi.h>
 #include <omp.h>
+#include <float.h>
 
 #include "point.h"
 #include "proximity_utils.h"
@@ -152,7 +153,7 @@ int main(int argc, char* argv[]) {
     
     SatisfiedInfo satisfiedInfos[tCount + 1]; // Create an array to hold satisfiedInfos
     for (int j = 0; j <= tCount; j++) {
-        satisfiedInfos[j].t = -1.0; // Initialize t value
+        satisfiedInfos[j].t = DBL_MAX; // Initialize t value
         for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
             satisfiedInfos[j].satisfiedIndices[k] = -1; // Initialize satisfiedIndices to -1
         }
@@ -163,93 +164,13 @@ int main(int argc, char* argv[]) {
         printf("rank: %d workerPointsTcount %d:, id: %d x = %.2f, y = %.2f\n", rank, i, workerPointsTcount[i].id, workerPointsTcount[i].x, workerPointsTcount[i].y);
     }
 
-    // int currentPCPointsFound = 0;
-    // // Perform Proximity Criteria Check using OpenMP
-    // #pragma omp parallel for shared(points, numPointsPerWorker, K, D, tValues, satisfiedInfos, workerPointsTcount) private(t)
-    // for (int j = 0; j <= tCount; j++) {
-    //     t = tValues[j];
-    //     currentPCPointsFound = 0;
-
-    //     // Iterate through each point and perform Proximity Criteria check
-    //     for (int i = 0; i < (numPointsPerWorker * tCount); i++) {
-    //         int result = checkProximityCriteria(workerPointsTcount[i], workerPointsTcount, (numPointsPerWorker * tCount), K, D, t);
-
-    //         // Update satisfiedInfos if the current point satisfies Proximity Criteria
-    //         if (result) {
-    //             if (currentPCPointsFound == 0 && satisfiedInfos[j].satisfiedIndices[currentPCPointsFound] != -1)
-    //                 fprintf(stderr, "rank: %d, shit\n", rank);
-    //             if (currentPCPointsFound == 0) {
-    //                 satisfiedInfos[j].t = t; // Update t value
-    //                  #pragma omp critical 
-    //                     satisfiedInfos[j].satisfiedIndices[currentPCPointsFound] = workerPointsTcount[i].id; // Insert point's index in the list
-    //                     currentPCPointsFound++;
-    //             } else {
-    //                 if (satisfiedInfos[j].satisfiedIndices[currentPCPointsFound] == -1) {
-    //                     for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
-    //                         if (satisfiedInfos[j].satisfiedIndices[k] != workerPointsTcount[i].id) {
-    //                             #pragma omp critical 
-    //                                 satisfiedInfos[j].satisfiedIndices[currentPCPointsFound] = workerPointsTcount[i].id; // Insert point's index in the list
-    //                                 currentPCPointsFound++;
-    //                         } 
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //         if (currentPCPointsFound >= MAX_NUM_SATISFIED_POINTS)
-    //             break;
-    //     }
-    // }
-
-    // // Perform Parallel Proximity Criteria Check using OpenMP
-    // #pragma omp parallel for shared(points, numPointsPerWorker, K, D, tValues, satisfiedInfos, workerPointsTcount) private(t)
-    // for (int j = 0; j <= tCount; j++) {
-    //     t = tValues[j];
-    //     int currentPCPointsFound = 0;
-    //     //int satisfiedIndices[MAX_NUM_SATISFIED_POINTS] = {-1}; // Array to store satisfied indices
-        
-    //     // Iterate through each point and perform Proximity Criteria check
-    //     for (int i = 0; i < (numPointsPerWorker * tCount); i++) {
-    //         int result = checkProximityCriteria(workerPointsTcount[i], workerPointsTcount, (numPointsPerWorker * tCount), K, D, t);
-
-    //         // Update satisfiedIndices if the current point satisfies Proximity Criteria
-    //         #pragma omp critical
-    //         {
-    //             if (result) {
-    //                 // int alreadyAdded = 0;
-    //                 for (int k = 0; k < currentPCPointsFound; k++) {
-    //                     if (satisfiedInfos[j].satisfiedIndices[k] == workerPointsTcount[i].id) {
-    //                         //alreadyAdded = 1;
-    //                         break;
-    //                     } else {
-    //                         satisfiedInfos[j].t = t;
-    //                         satisfiedInfos[j].satisfiedIndices[currentPCPointsFound] = workerPointsTcount[i].id;
-    //                         currentPCPointsFound++;
-    //                     }
-    //                 }
-    //             }
-    //         }
-            
-    //         if (currentPCPointsFound >= MAX_NUM_SATISFIED_POINTS) {
-    //             break; // Three points satisfying Proximity Criteria found, exit loop
-    //         }
-    //     }
-        
-    //     // // Update satisfiedInfos with the found indices
-    //     // #pragma omp critical
-    //     // {
-    //     //     satisfiedInfos[j].t = t;
-    //     //     for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
-    //     //         satisfiedInfos[j].satisfiedIndices[k] = satisfiedIndices[k];
-    //     //     }
-    //     // }
-    // }
-
     // Perform Parallel Proximity Criteria Check using OpenMP
     #pragma omp parallel for shared(points, numPointsPerWorker, K, D, tValues, satisfiedInfos, workerPointsTcount) private(t)
     for (int j = 0; j <= tCount; j++) {
         t = tValues[j];
         int currentPCPointsFound = 0;
-        int satisfiedIndices[MAX_NUM_SATISFIED_POINTS] = {-1}; // Array to store satisfied indices
+        int satisfiedIndices[MAX_NUM_SATISFIED_POINTS] = {0}; // Array to store satisfied indices
+        int foundIndices = 0;
         
         // Iterate through each point and perform Proximity Criteria check
         for (int i = 0; i < (numPointsPerWorker * tCount); i++) {
@@ -259,14 +180,15 @@ int main(int argc, char* argv[]) {
             if (result) {
                 int pointID = workerPointsTcount[i].id;
                 int alreadyAdded = 0;
-                for (int k = 0; k < currentPCPointsFound; k++) {
+                for (int k = 0; k < foundIndices; k++) {
                     if (satisfiedIndices[k] == pointID) {
                         alreadyAdded = 1;
                         break;
                     }
                 }
                 if (!alreadyAdded) {
-                    satisfiedIndices[currentPCPointsFound] = pointID;
+                    satisfiedIndices[foundIndices] = pointID;
+                    foundIndices++;
                     currentPCPointsFound++;
                 }
             }
@@ -277,22 +199,18 @@ int main(int argc, char* argv[]) {
         }
         
         // Update satisfiedInfos with the found indices
-        if (currentPCPointsFound == MAX_NUM_SATISFIED_POINTS) {
-            #pragma omp critical
-            {
+        #pragma omp critical
+        {
+            if (currentPCPointsFound >= MAX_NUM_SATISFIED_POINTS) {
                 satisfiedInfos[j].t = t;
                 for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
                     satisfiedInfos[j].satisfiedIndices[k] = satisfiedIndices[k];
                 }
-            }
-        } else {
-            #pragma omp critical
-            {
-                satisfiedInfos[j].t = -1.0;
+            } else {
+                satisfiedInfos[j].t = -1;
             }
         }
     }
-
 
     for (int i = 0; i < (numPointsPerWorker * tCount); i++) {
         printf("rank: %d, satisfiedInfos[%d].t: %lf\n", rank, i, satisfiedInfos[i].t);
@@ -353,25 +271,6 @@ int main(int argc, char* argv[]) {
         }
         free(collectedSatisfiedInfos);
     }
-
-    // else {
-    //     SatisfiedInfo collectedSatisfiedInfos[size][tCount]; // Create an array to collect satisfiedInfos from workers
-
-    //     // Receive satisfiedInfos from worker processes
-    //     for (int i = 1; i < size; i++)
-    //         MPI_Recv(&collectedSatisfiedInfos[i], tCount * sizeof(SatisfiedInfo), MPI_BYTE, i, 0, MPI_COMM_WORLD, &status);
-
-    //     // Combine results from all processes and write to the output file
-    //     if (!writeResults("Output.txt", collectedResults, N, tValues, tCount)) {
-    //         fprintf(stderr, "Error writing results to output file\n");
-    //         free(points);
-    //         free(tValues);
-    //         free(collectedResults);
-    //         MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
-    //     }
-
-    //     free(collectedResults); 
-    // }
 
     // Free allocated memory
     free(workerPointsTcount);

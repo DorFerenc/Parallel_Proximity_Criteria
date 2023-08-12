@@ -1,6 +1,8 @@
 #include "proximity_utils.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
+#include <omp.h>
 
 int readInputData(const char* filename, int* N, int* K, double* D, int* tCount, Point** points) {
     /*
@@ -45,6 +47,35 @@ int readInputData(const char* filename, int* N, int* K, double* D, int* tCount, 
 
     fclose(inputFile);
     return 1;
+}
+
+
+/**
+ * Check Proximity Criteria for a point with a specific t value.
+ *
+ * @param point The point to check the Proximity Criteria for.
+ * @param points Array of points.
+ * @param N Number of points in the array.
+ * @param K The value of K parameter.
+ * @param D The value of D parameter.
+ * @param t The specific t value.
+ * @return The result of the Proximity Criteria check.
+ */
+int checkProximityCriteria(Point point, Point* points, int N, int K, double D, double t) {
+    int closePoints = 0;
+
+    #pragma omp parallel for reduction(+:closePoints)
+    for (int i = 0; i < N; i++) {
+        if (i != point.id) {
+            double distance = sqrt((point.x - points[i].x) * (point.x - points[i].x) +
+                                   (point.y - points[i].y) * (point.y - points[i].y));
+            if (distance < D) {
+                closePoints++;
+            }
+        }
+    }
+
+    return closePoints >= K;
 }
 
 int writeResults(const char* filename, int tCount, double* tValues, Point* points, int N, int K, double D) {

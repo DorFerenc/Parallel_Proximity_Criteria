@@ -109,6 +109,16 @@ int main(int argc, char* argv[]) {
     }  
 
     // Use OpenMP to parallelize Proximity Criteria check
+    #pragma omp parallel for shared(points, numPointsPerWorker, K, D, tValues) private(t)
+    for (int i = 0; i < numPointsPerWorker; i++) {
+        for (int j = 0; j <= tCount; j++) {
+            t = tValues[j];
+            // Perform Proximity Criteria check for each point with specific t value
+            int result = checkProximityCriteria(points[i], K, D, t);
+            // Update results or perform other necessary operations
+        }
+    }
+
     // Ensure thread safety for accessing shared data structures
     
     // Send computed results back to the master using MPI_Send

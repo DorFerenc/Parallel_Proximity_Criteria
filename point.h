@@ -7,4 +7,3 @@ typedef struct {
 } Point;
 
 void computeCoordinates(Point* point, double t);
-void testCoordinates(Point* originalPoints, Point* computedPoints, int numPoints, double* tValues, int tCount);

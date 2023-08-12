@@ -98,6 +98,7 @@ int main(int argc, char* argv[]) {
     //Both MASTER and WORKERS perform:
     
     if (SHOULD_TEST) {
+        // Allocate memory and copy the original points array for testing
         points_orig = (Point*)malloc(numPointsPerWorker * sizeof(Point));
         if (points == NULL) {
             fprintf(stderr, "Memory allocation error\n");
@@ -114,7 +115,7 @@ int main(int argc, char* argv[]) {
     }  
 
      if (SHOULD_TEST)
-        void testCoordinates(points_orig, points,n umPoints, tValues, tCount); 
+        void testCoordinates(points_orig, points,n umPoints, tValues, tCount); // Test the computed coordinates against expected coordinates 
 
     // Use OpenMP to parallelize Proximity Criteria check
     #pragma omp parallel for shared(points, numPointsPerWorker, K, D, tValues) private(t)

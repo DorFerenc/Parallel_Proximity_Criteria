@@ -27,7 +27,9 @@ void testCoordinates(Point* originalPoints, Point* computedPoints, int numPoints
             // Compare the computed coordinates with the expected coordinates
             if (computedPoints[i].x != expectedX || computedPoints[i].y != expectedY) {
                 fprintf(stderr, "Coordinate test failed for point %d at t index %d\n", i, j);
+                return;
             }
         }
     }
+    printf("The test passed successfully\n"); 
 }

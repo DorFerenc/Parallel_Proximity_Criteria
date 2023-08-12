@@ -14,8 +14,10 @@
 __global__ void computeCoordinatesKernel(Point* points, int numPoints, double* tValues, int tCount, FinalPoint* finalPoints) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx <= tCount) {
+        double t = (tValues[idx]);
         for (int currentPointIndex = 0; currentPointIndex < numPoints; currentPointIndex++) { //TODO check the <=
-            double t = (tValues[idx]);
+            int finalPointsIndex = idx * numPoints + currentPointIndex;             // Calculate the index for finalPoints
+
             // Get the point parameters.
             double x1 = points[currentPointIndex].x1;
             double x2 = points[currentPointIndex].x2;
@@ -27,9 +29,9 @@ __global__ void computeCoordinatesKernel(Point* points, int numPoints, double* t
             double y = a * x + b;
 
             // Store the coordinates in the point.
-            finalPoints[idx * currentPointIndex].x = x;
-            finalPoints[idx * currentPointIndex].y = y;
-            finalPoints[idx * currentPointIndex].id = points[currentPointIndex].id;
+            finalPoints[finalPointsIndex].x = x;
+            finalPoints[finalPointsIndex].y = y;
+            finalPoints[finalPointsIndex].id = points[currentPointIndex].id;
         }
     }
 }
@@ -125,7 +127,7 @@ int performGPUComputation(Point* points, int numPoints, double* tValues, int tCo
     cudaDeviceSynchronize(); // Wait for GPU computations to complete
 
     // Copy computed data back to host
-    cudaStatus = cudaMemcpy(finalPoints, d_finalPoints, numPoints * tCount * sizeof(FinalPoint), cudaMemcpyDeviceToHost);
+    cudaStatus = cudaMemcpy(finalPoints, d_finalPoints, (numPoints * tCount * sizeof(FinalPoint)), cudaMemcpyDeviceToHost);
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "Error copying data back from GPU: %s\n", cudaGetErrorString(cudaStatus));
         cudaFree(d_points);

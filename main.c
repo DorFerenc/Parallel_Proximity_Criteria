@@ -23,12 +23,15 @@ int main(int argc, char* argv[]) {
         MPI_Abort(MPI_COMM_WORLD, __LINE__); // Abort MPI execution
     }
 
+    int numPointsPerWorker, K, tCount;
+    double D;
+    Point* points;
+    double* tValues = NULL;
+    double t = 0.0; // Placeholder for t value
+
     if (rank == MASTER) {
         // Master process reads input data and sends work to workers
-        int N, K, tCount;
-        double D;
-        Point* points = NULL;
-        double* tValues = NULL;
+        int N;
 
         // Read input data and exit if it fails
         if (!readInputData(FILENAME, &N, &K, &D, &tCount, &points)) {
@@ -63,19 +66,9 @@ int main(int argc, char* argv[]) {
             MPI_Send(&points[startIdx], numPointsPerWorker * sizeof(Point), MPI_BYTE, i, 0, MPI_COMM_WORLD);
         }
         // Use MPI_Send and MPI_Recv for communication
-        
-        // Free allocated memory
-        free(points);
-        free(tValues);
 
-    } else if (rank != MASTER) {
+    } else { // rank != MASTER
         // Worker process
-        int numPointsPerWorker, K, tCount;
-        double D;
-        Point* points;
-        double* tValues = NULL;
-        double t = 0.0; // Placeholder for t value
-
         // Receive input data and configuration from the master process (rank 0)
         MPI_Recv(&numPointsPerWorker, 1, MPI_INT, MASTER, 0, MPI_COMM_WORLD, &status);
         MPI_Recv(&K, 1, MPI_INT, MASTER, 0, MPI_COMM_WORLD, &status);
@@ -98,19 +91,20 @@ int main(int argc, char* argv[]) {
             MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
         }
         MPI_Recv(points, numPointsPerWorker * sizeof(Point), MPI_BYTE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE); // Receive points array from the master process
-        
-        // Perform GPU-accelerated computation using CUDA
-        performGPUComputation(points, numPointsPerWorker, t);
-
-        // Use OpenMP to parallelize Proximity Criteria check
-        // Ensure thread safety for accessing shared data structures
-        
-        // Send computed results back to the master using MPI_Send
-        
-        // Free allocated memory
-        free(points);
-        free(tValues);
     }
+    //Both MASTER and WORKERS perform:
+    
+    // Perform GPU-accelerated computation using CUDA
+    performGPUComputation(points, numPointsPerWorker, t);
+
+    // Use OpenMP to parallelize Proximity Criteria check
+    // Ensure thread safety for accessing shared data structures
+    
+    // Send computed results back to the master using MPI_Send
+
+    // Free allocated memory
+    free(points);
+    free(tValues);
 
     // Finalize MPI
     MPI_Finalize();

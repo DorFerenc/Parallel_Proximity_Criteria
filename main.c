@@ -124,6 +124,44 @@ int main(int argc, char* argv[]) {
     // Send computed results back to the master using MPI_Send
     if (rank != MASTER)
         MPI_Send(points, numPointsPerWorker * sizeof(Point), MPI_BYTE, MASTER, 0, MPI_COMM_WORLD);
+    else 
+        // Create an array to collect results from workers
+        Point* collectedResults = (Point*)malloc(N * sizeof(Point));
+        if (collectedResults == NULL) {
+            fprintf(stderr, "Memory allocation error\n");
+            free(points);
+            free(tValues);
+            MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
+        }
+
+        // Collect results from worker processes
+        for (int i = 1; i < size; i++) {
+            MPI_Recv(&collectedResults[(i - 1) * numPointsPerWorker], numPointsPerWorker * sizeof(Point), MPI_BYTE, i, 0, MPI_COMM_WORLD, &status);
+        }
+
+        // Combine results from all processes and write to the output file
+        if (!combineResultsAndWrite(collectedResults, N, tValues, tCount)) {
+            fprintf(stderr, "Error writing results to output file\n");
+            free(points);
+            free(tValues);
+            free(collectedResults);
+            MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
+        }
+
+        free(collectedResults); 
+        // Master process receives results from all workers
+        // for (int i = 1; i < size; i++) {
+        //     MPI_Recv(&points[numPointsPerWorker * i], numPointsPerWorker * sizeof(Point), MPI_BYTE, i, 0, MPI_COMM_WORLD, &status);
+        // }
+
+        // // Write results to the output file using writeResults function
+        // if (!writeResults("Output.txt", points, N)) {
+        //     fprintf(stderr, "Error writing results to the output file\n");
+        //     free(points);
+        //     free(tValues);
+        //     MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
+        // }
+    }
 
     // Free allocated memory
     free(points);

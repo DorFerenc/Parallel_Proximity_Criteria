@@ -78,80 +78,131 @@ int checkProximityCriteria(Point point, Point* points, int N, int K, double D, d
     return closePoints >= K;
 }
 
-int writeResults(const char* filename, int tCount, double* tValues, Point* points, int N, int K, double D) {
-    /*
-    Write results to the given output file.
-    Parameters:
-        filename: Name of the output file.
-        tCount: Number of t values.
-        tValues: Array of t values.
-        points: Array of points.
-        N: Number of points.
-        K: Minimal number of points for Proximity Criteria.
-        D: Distance threshold.
-    Returns:
-        1 on success, 0 on failure.
-    */
+#include <stdio.h>
+#include "point.h"
 
-    FILE* outputFile = fopen(filename, "w");
-    if (outputFile == NULL) {
-        perror("Error opening output file");
-        exit(1);
+/**
+ * Write results to the output file.
+ *
+ * @param filename Name of the output file.
+ * @param points Array of points containing the results.
+ * @param N Number of points in the array.
+ * @param tValues Array of t values.
+ * @param tCount Number of t values.
+ * @return 1 if writing was successful, 0 if there was an error.
+ */
+int writeResults(const char* filename, Point* points, int N, double* tValues, int tCount) {
+    FILE* file = fopen(filename, "w");
+    if (file == NULL) {
+        fprintf(stderr, "Error opening output file\n");
+        return 0;
     }
 
-    // // Write results for points satisfying Proximity Criteria
-    // int found = 0;
-    // for (int i = 0; i <= tCount; i++) {
-    //     // Perform Proximity Criteria check here
-        
-    //     if (/* Check if 3 points satisfy Proximity Criteria */) {
-    //         found = 1;
-    //         fprintf(outputFile, "Points %d, %d, %d satisfy Proximity Criteria at t = %.2f\n",
-    //                 /* IDs of the points */, tValues[i]);
-    //     }
-    // }
+    int foundCount = 0; // Counter to keep track of how many sets of 3 points were found
 
-    // Write results for points satisfying Proximity Criteria
-    int found = 0;
-    for (int i = 0; i <= tCount; i++) {
-        int count = 0;
-        int pointIDs[3] = {-1, -1, -1};
+    for (int j = 0; j < tCount; j++) {
+        int foundForT = 0; // Counter to keep track of how many sets of 3 points were found for this t value
 
-        // Perform Proximity Criteria check
-        for (int j = 0; j < N; j++) {
-            int closePoints = 0;
-            for (int k = 0; k < N; k++) {
-                if (j != k) {
-                    double distance = computeDistance(points[j], points[k]);
-                    if (distance < D) {
-                        closePoints++;
-                    }
+        for (int i = 0; i < N; i++) {
+            if (points[i].results[j]) {
+                if (foundForT == 0) {
+                    fprintf(file, "Points");
                 }
-            }
-            if (closePoints >= K) {
-                count++;
-                if (count <= 3) {
-                    pointIDs[count - 1] = points[j].id;
+                fprintf(file, " pointID%d", points[i].id);
+                foundForT++;
+
+                if (foundForT == 3) {
+                    fprintf(file, " satisfy Proximity Criteria at t = %.6f\n", tValues[j]);
+                    foundCount++;
+                    foundForT = 0; // Reset counter for the next set of points
                 }
             }
         }
-
-        if (count >= 3) {
-            found = 1;
-            fprintf(outputFile, "Points %d, %d, %d satisfy Proximity Criteria at t = %.2f\n",
-                    pointIDs[0], pointIDs[1], pointIDs[2], tValues[i]);
-        }
     }
 
-    if (!found) {
-        fprintf(outputFile, "There were no 3 points found for any t.\n");
+    if (foundCount == 0) {
+        fprintf(file, "There were no 3 points found for any t.\n");
     }
 
-
-    if (!found) {
-        fprintf(outputFile, "There were no 3 points found for any t.\n");
-    }
-
-    fclose(outputFile);
+    fclose(file);
     return 1;
 }
+
+
+// int writeResults(const char* filename, int tCount, double* tValues, Point* points, int N, int K, double D) {
+//     /*
+//     Write results to the given output file.
+//     Parameters:
+//         filename: Name of the output file.
+//         tCount: Number of t values.
+//         tValues: Array of t values.
+//         points: Array of points.
+//         N: Number of points.
+//         K: Minimal number of points for Proximity Criteria.
+//         D: Distance threshold.
+//     Returns:
+//         1 on success, 0 on failure.
+//     */
+
+//     FILE* outputFile = fopen(filename, "w");
+//     if (outputFile == NULL) {
+//         perror("Error opening output file");
+//         exit(1);
+//     }
+
+//     // // Write results for points satisfying Proximity Criteria
+//     // int found = 0;
+//     // for (int i = 0; i <= tCount; i++) {
+//     //     // Perform Proximity Criteria check here
+        
+//     //     if (/* Check if 3 points satisfy Proximity Criteria */) {
+//     //         found = 1;
+//     //         fprintf(outputFile, "Points %d, %d, %d satisfy Proximity Criteria at t = %.2f\n",
+//     //                 /* IDs of the points */, tValues[i]);
+//     //     }
+//     // }
+
+//     // Write results for points satisfying Proximity Criteria
+//     int found = 0;
+//     for (int i = 0; i <= tCount; i++) {
+//         int count = 0;
+//         int pointIDs[3] = {-1, -1, -1};
+
+//         // Perform Proximity Criteria check
+//         for (int j = 0; j < N; j++) {
+//             int closePoints = 0;
+//             for (int k = 0; k < N; k++) {
+//                 if (j != k) {
+//                     double distance = computeDistance(points[j], points[k]);
+//                     if (distance < D) {
+//                         closePoints++;
+//                     }
+//                 }
+//             }
+//             if (closePoints >= K) {
+//                 count++;
+//                 if (count <= 3) {
+//                     pointIDs[count - 1] = points[j].id;
+//                 }
+//             }
+//         }
+
+//         if (count >= 3) {
+//             found = 1;
+//             fprintf(outputFile, "Points %d, %d, %d satisfy Proximity Criteria at t = %.2f\n",
+//                     pointIDs[0], pointIDs[1], pointIDs[2], tValues[i]);
+//         }
+//     }
+
+//     if (!found) {
+//         fprintf(outputFile, "There were no 3 points found for any t.\n");
+//     }
+
+
+//     if (!found) {
+//         fprintf(outputFile, "There were no 3 points found for any t.\n");
+//     }
+
+//     fclose(outputFile);
+//     return 1;
+// }

@@ -9,6 +9,7 @@
 
 #define FILENAME "InputZONA.txt"
 #define MASTER 0
+#defin SHOULD_TEST 0
 
 int main(int argc, char* argv[]) {
     // Initialize MPI
@@ -27,7 +28,9 @@ int main(int argc, char* argv[]) {
     double D;
     Point* points;
     double* tValues = NULL;
-    double t = 0.0; // Placeholder for t value
+    double t = 0.0;0 // Placeholder for t value
+    if (SHOULD_TEST)
+        Point* points_orig;
 
     if (rank == MASTER) {
         // Master process reads input data and sends work to workers
@@ -67,14 +70,6 @@ int main(int argc, char* argv[]) {
         }
         // Use MPI_Send and MPI_Recv for communication
 
-        //MASTER Allocate memory for points to hold the points data
-        points = (Point*)malloc(numPointsPerWorker * sizeof(Point));
-        if (points == NULL) {
-            fprintf(stderr, "Memory allocation error\n");
-            free(tValues); // Free previously allocated memory for tValues
-            MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
-        }
-
     } else { // rank != MASTER
         // Worker process
         // Receive input data and configuration from the master process (rank 0)
@@ -102,11 +97,24 @@ int main(int argc, char* argv[]) {
     }
     //Both MASTER and WORKERS perform:
     
+    if (SHOULD_TEST) {
+        points_orig = (Point*)malloc(numPointsPerWorker * sizeof(Point));
+        if (points == NULL) {
+            fprintf(stderr, "Memory allocation error\n");
+            free(tValues); // Free previously allocated memory for tValues
+            MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
+        }
+        memcpy(points_orig, points, numPoints * sizeof(Point));
+    }
+
     // Perform GPU-accelerated computation using CUDA
     if (!performGPUComputation(points, numPointsPerWorker, tValues)) {
         fprintf(stderr, "Error performing GPU computation\n");
         MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
     }  
+
+     if (SHOULD_TEST)
+        void testCoordinates(points_orig, points,n umPoints, tValues, tCount); 
 
     // Use OpenMP to parallelize Proximity Criteria check
     #pragma omp parallel for shared(points, numPointsPerWorker, K, D, tValues) private(t)

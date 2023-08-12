@@ -25,10 +25,10 @@ void printValues(int rank, Point* points, int numPointsPerWorker, double* tValue
         printf("CHANGED Point %d: x = %.2f, y = %.2f\n", i, points[i].x, points[i].y);
     }
 
-    // printf("tValues:\n");
-    // for (int i = 0; i <= tCount; i++) {
-    //     printf("t[%d] = %.6f\n", i, tValues[i]);
-    // }
+    printf("tValues:\n");
+    for (int i = 0; i <= tCount; i++) {
+        printf("t[%d] = %.6f\n", i, tValues[i]);
+    }
 }
 
 int main(int argc, char* argv[]) {

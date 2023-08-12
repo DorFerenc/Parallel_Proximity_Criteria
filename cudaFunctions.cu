@@ -2,28 +2,44 @@
 #include <helper_cuda.h>
 #include "myProto.h"
 
-// /**
-//  * CUDA kernel to compute the coordinates (x, y) for each point.
-//  * Each thread processes one point.
-//  *
-//  * @param points Array of points to compute coordinates for.
-//  * @param numPoints Number of points to process.
-//  * @param tValues Array of t values for coordinate computation.
-//  */
-// __global__ void computeCoordinatesKernel(Point* points, int numPoints, double* tValues, int tCount) {
-//     int idx = blockIdx.x * blockDim.x + threadIdx.x;
+/**
+ * CUDA kernel to compute the coordinates (x, y) for each point.
+ * Each thread processes one point.
+ *
+ * @param points Array of points to compute coordinates for.
+ * @param numPoints Number of points to process.
+ * @param tValues Array of t values for coordinate computation.
+ */
+__global__ void computeCoordinatesKernel(Point* points, int numPoints, double* tValues, int tCount) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
-//     if (idx < numPoints) {
-//         Point* p = &points[idx];
-//         for (int i = 0; i <= tCount; i++) {
-//             double t = tValues[i];
-//             p->x[i] = ((p->x2 - p->x1) / 2.0) * sin(t * M_PI / 2.0) + (p->x2 + p->x1) / 2.0;
-//             p->y[i] = p->a * p->x[i] + p->b;
-//             // p[i].x = ((p->x2 - p->x1) / 2.0) * sin(t * M_PI / 2.0) + (p->x2 + p->x1) / 2.0;
-//             // p[i].y = p->a * p[i].x + p->b;;
-//         }
-//     }
-// }
+    if (idx >= numPoints) return;
+    if (idx < numPoints) {
+        // Point* p = &points[idx];
+        for (int i = 0; i < tCount; i++) {
+            double t = (tValues[i]);
+            // Get the point parameters.
+            double x1 = points[idx].x1;
+            double x2 = points[idx].x2;
+            double a = points[idx].a;
+            double b = points[idx].b;
+
+            // Compute the x and y coordinates.
+            // double x = ((x2 - x1) / 2) * sin(t * M_PI / 2) + (x2 + x1) / 2;
+            double x = (((x2 - x1) / 2) * sin(t * M_PI / 2) + (x2 + x1) / 2);
+            double y = a * x + b;
+
+            // Store the coordinates in the point.
+            points[idx].x = x;
+            points[idx].y = y;
+
+            // p->x[i] = ((p->x2 - p->x1) / 2.0) * sin(t * M_PI / 2.0) + (p->x2 + p->x1) / 2.0;
+            // p->y[i] = p->a * p->x[i] + p->b;
+            p[i].x = ((p->x2 - p->x1) / 2.0) * sin(t * M_PI / 2.0) + (p->x2 + p->x1) / 2.0;
+            p[i].y = p->a * p[i].x + p->b;;
+        }
+    }
+}
 
 // /**
 //  * CUDA kernel to compute the coordinates (x, y) for each point.
@@ -64,29 +80,29 @@
 //     }
 // }
 
-__global__ void computeCoordinatesKernel(Point *points, int numPoints, double *tValues, int tCount) {
-  // Get the thread ID.
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+// __global__ void computeCoordinatesKernel(Point *points, int numPoints, double *tValues, int tCount) {
+//   // Get the thread ID.
+//   int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
-  // If the thread ID is within the range of points to process, compute the coordinates for that point.
-  if (idx >= numPoints) return;
-  if (idx < 2) {
-    // Get the point parameters.
-    double x1 = points[idx].x1;
-    double x2 = points[idx].x2;
-    double a = points[idx].a;
-    double b = points[idx].b;
+//   // If the thread ID is within the range of points to process, compute the coordinates for that point.
+//   if (idx >= numPoints) return;
+//   if (idx < 2) {
+//     // Get the point parameters.
+//     double x1 = points[idx].x1;
+//     double x2 = points[idx].x2;
+//     double a = points[idx].a;
+//     double b = points[idx].b;
 
-    // Compute the x and y coordinates.
-    double t = tValues[idx % tCount];
-    double x = ((x2 - x1) / 2) * sin(t * M_PI / 2) + (x2 + x1) / 2;
-    double y = a * x + b;
+//     // Compute the x and y coordinates.
+//     double t = tValues[idx];
+//     double x = ((x2 - x1) / 2) * sin(t * M_PI / 2) + (x2 + x1) / 2;
+//     double y = a * x + b;
 
-    // Store the coordinates in the point.
-    points[idx].x = x;
-    points[idx].y = y;
-  }
-}
+//     // Store the coordinates in the point.
+//     points[idx].x = x;
+//     points[idx].y = y;
+//   }
+// }
 
 // void computeCoordinates(Point *points, int numPoints, double *tValues, int tCount) {
 //   // Print the thread ID.
@@ -124,12 +140,21 @@ __global__ void computeCoordinatesKernel(Point *points, int numPoints, double *t
 
 int performGPUComputation(Point* points, int numPoints, double* tValues, int tCount) {
     Point* d_points = NULL;
+    double* d_tValues = NULL; // GPU memory for tValues
     cudaError_t cudaStatus;
 
     // Allocate GPU memory for points
     cudaStatus = cudaMalloc((void**)&d_points, numPoints * sizeof(Point));
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "Error allocating GPU memory: %s\n", cudaGetErrorString(cudaStatus));
+        return 0;
+    }
+
+    // Allocate GPU memory for tValues
+    cudaStatus = cudaMalloc((void**)&d_tValues, (tCount + 1) * sizeof(double));
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "Error allocating GPU memory for tValues: %s\n", cudaGetErrorString(cudaStatus));
+        cudaFree(d_points);
         return 0;
     }
     
@@ -141,6 +166,15 @@ int performGPUComputation(Point* points, int numPoints, double* tValues, int tCo
         return 0;
     }
 
+    // Copy tValues from host to device
+    cudaStatus = cudaMemcpy(d_tValues, tValues, (tCount + 1) * sizeof(double), cudaMemcpyHostToDevice);
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "Error copying data to GPU for tValues: %s\n", cudaGetErrorString(cudaStatus));
+        cudaFree(d_points);
+        cudaFree(d_tValues);
+        return 0;
+    }
+
     // Determine the block size and number of blocks for GPU kernel execution
     int threadsPerBlock = 256; // Number of threads per block
     int numBlocks = (numPoints + threadsPerBlock - 1) / threadsPerBlock; // Calculate number of blocks needed to process all points
@@ -149,8 +183,13 @@ int performGPUComputation(Point* points, int numPoints, double* tValues, int tCo
     printf("numPoints: %d, blockSize: %d\n", numPoints, threadsPerBlock);// TODO df delete this
     printf("Launching GPU kernel with numBlocks: %d and threadsPerBlock: %d ...\n", numBlocks, threadsPerBlock);// TODO df delete this
 
+    printf("tValues:\n");
+    for (int i = 0; i <= tCount; i++) {
+        printf("t[%d] = %lf\n", i, tValues[i]);
+    }
+
     // Compute coordinates on GPU using CUDA kernel
-    computeCoordinatesKernel<<<numBlocks, threadsPerBlock>>>(d_points, numPoints, tValues, tCount);
+    computeCoordinatesKernel<<<numBlocks, threadsPerBlock>>>(d_points, numPoints, d_tValues, tCount);
 
     // Check for kernel launch errors
     cudaStatus = cudaGetLastError();

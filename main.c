@@ -2,11 +2,11 @@
 #include <stdlib.h>
 #include <mpi.h>
 #include <omp.h>
-#include <cstring>
 
 #include "point.h"
 #include "proximity_utils.h"
 #include "myProto.h"
+#include <cstring>
 
 #define FILENAME "InputSmall.txt"
 #define MASTER 0

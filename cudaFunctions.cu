@@ -29,14 +29,16 @@ int performGPUComputation(Point* points, int numPoints, double* tValues, int tCo
     Point* d_points = NULL;
 
     // Allocate GPU memory for points
-    if (cudaMalloc((void**)&d_points, numPoints * sizeof(Point)) != cudaSuccess) {
-        fprintf(stderr, "Error allocating GPU memory\n");
+    cudaStatus = cudaMalloc((void**)&d_points, numPoints * sizeof(Point));
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "Error allocating GPU memory: %s\n", cudaGetErrorString(cudaStatus));
         return 0;
     }
-
+    
     // Copy points data from host to device
-    if (cudaMemcpy(d_points, points, numPoints * sizeof(Point), cudaMemcpyHostToDevice) != cudaSuccess) {
-        fprintf(stderr, "Error copying data to GPU\n");
+    cudaStatus = cudaMemcpy(d_points, points, numPoints * sizeof(Point), cudaMemcpyHostToDevice);
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "Error copying data to GPU: %s\n", cudaGetErrorString(cudaStatus));
         cudaFree(d_points);
         return 0;
     }
@@ -53,15 +55,17 @@ int performGPUComputation(Point* points, int numPoints, double* tValues, int tCo
     computeCoordinatesKernel<<<numBlocks, blockSize>>>(d_points, numPoints, tValues, tCount);
 
     // Check for kernel launch errors
-    if (cudaGetLastError() != cudaSuccess) {
-        fprintf(stderr, "Error launching GPU kernel\n");
+    cudaStatus = cudaGetLastError();
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "Error launching GPU kernel: %s\n", cudaGetErrorString(cudaStatus));
         cudaFree(d_points);
         return 0;
     }
 
     // Copy computed data back to host
-    if (cudaMemcpy(points, d_points, numPoints * sizeof(Point), cudaMemcpyDeviceToHost) != cudaSuccess) {
-        fprintf(stderr, "Error copying data back from GPU\n");
+    cudaStatus = cudaMemcpy(points, d_points, numPoints * sizeof(Point), cudaMemcpyDeviceToHost);
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "Error copying data back from GPU: %s\n", cudaGetErrorString(cudaStatus));
         cudaFree(d_points);
         return 0;
     }

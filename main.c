@@ -7,18 +7,18 @@
 #include "proximity_utils.h"
 #include "cuda_utils.h"
 
+#define FILENAME "InputZONA.txt"
+
 int main(int argc, char* argv[]) {
     // Initialize MPI
-    MPI_Init(&argc, &argv);
-
     int rank, size;
+    MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
     if (size != 2) {
-        printf("This code is designed for two processes.\n");
-        MPI_Finalize();
-        return 1;
+        fprintf(stderr, "This code is designed for two processes.\n");
+        MPI_Abort(MPI_COMM_WORLD, __LINE__); // Abort MPI execution
     }
 
     if (rank == 0) {
@@ -28,7 +28,11 @@ int main(int argc, char* argv[]) {
         Point* points = NULL;
         double* tValues = NULL;
 
-        readInputData("input.txt", &N, &K, &D, &tCount, &points);
+        // Read input data and exit if it fails
+        if (!readInputData(FILENAME, &N, &K, &D, &tCount, &points)) {
+            fprintf(stderr, "Error reading input data from %s\n", FILENAME);
+            MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
+        }
 
         // Distribute input points and t values to workers
         // Use MPI_Send and MPI_Recv for communication

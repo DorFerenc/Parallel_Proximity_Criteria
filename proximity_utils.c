@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void readInputData(const char* filename, int* N, int* K, double* D, int* tCount, Point** points) {
+int readInputData(const char* filename, int* N, int* K, double* D, int* tCount, Point** points) {
     /*
     Read input data from the given file and populate the parameters and points array.
     Parameters:
@@ -12,12 +12,14 @@ void readInputData(const char* filename, int* N, int* K, double* D, int* tCount,
         D: Pointer to store the distance threshold.
         tCount: Pointer to store the number of t values.
         points: Pointer to store the array of points.
+    Returns:
+        1 on success, 0 on failure.
     */
 
     FILE* inputFile = fopen(filename, "r");
     if (inputFile == NULL) {
         perror("Error opening input file");
-        exit(1);
+        return 0;
     }
 
     // Read parameters
@@ -28,7 +30,7 @@ void readInputData(const char* filename, int* N, int* K, double* D, int* tCount,
     if (*points == NULL) {
         perror("Memory allocation error");
         fclose(inputFile);
-        exit(1);
+        return 0;
     }
 
     // Read data for each point
@@ -37,14 +39,15 @@ void readInputData(const char* filename, int* N, int* K, double* D, int* tCount,
             perror("Error reading point data");
             fclose(inputFile);
             free(*points);
-            exit(1);
+            return 0;
         }
     }
 
     fclose(inputFile);
+    return 1;
 }
 
-void writeResults(const char* filename, int tCount, double* tValues, Point* points, int N, int K, double D) {
+int writeResults(const char* filename, int tCount, double* tValues, Point* points, int N, int K, double D) {
     /*
     Write results to the given output file.
     Parameters:
@@ -55,6 +58,8 @@ void writeResults(const char* filename, int tCount, double* tValues, Point* poin
         N: Number of points.
         K: Minimal number of points for Proximity Criteria.
         D: Distance threshold.
+    Returns:
+        1 on success, 0 on failure.
     */
 
     FILE* outputFile = fopen(filename, "w");
@@ -117,4 +122,5 @@ void writeResults(const char* filename, int tCount, double* tValues, Point* poin
     }
 
     fclose(outputFile);
+    return 1;
 }

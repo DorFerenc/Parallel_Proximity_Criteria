@@ -2,4 +2,4 @@
 
 #include "point.h"
 
-int performGPUComputation(Point* points, int N, double t);
+int performGPUComputation(Point* points, int N, double* tValues);

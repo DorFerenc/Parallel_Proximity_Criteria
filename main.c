@@ -67,6 +67,14 @@ int main(int argc, char* argv[]) {
         }
         // Use MPI_Send and MPI_Recv for communication
 
+        //MASTER Allocate memory for points to hold the points data
+        points = (Point*)malloc(numPointsPerWorker * sizeof(Point));
+        if (points == NULL) {
+            fprintf(stderr, "Memory allocation error\n");
+            free(tValues); // Free previously allocated memory for tValues
+            MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
+        }
+
     } else { // rank != MASTER
         // Worker process
         // Receive input data and configuration from the master process (rank 0)
@@ -95,7 +103,7 @@ int main(int argc, char* argv[]) {
     //Both MASTER and WORKERS perform:
     
     // Perform GPU-accelerated computation using CUDA
-    if (!performGPUComputation(points, numPointsPerWorker, t)) {
+    if (!performGPUComputation(points, numPointsPerWorker, tValues)) {
         fprintf(stderr, "Error performing GPU computation\n");
         MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
     }  

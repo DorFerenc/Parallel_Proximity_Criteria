@@ -95,7 +95,10 @@ int main(int argc, char* argv[]) {
     //Both MASTER and WORKERS perform:
     
     // Perform GPU-accelerated computation using CUDA
-    performGPUComputation(points, numPointsPerWorker, t);
+    if (!performGPUComputation(points, numPointsPerWorker, t)) {
+        fprintf(stderr, "Error performing GPU computation\n");
+        MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
+    }  
 
     // Use OpenMP to parallelize Proximity Criteria check
     // Ensure thread safety for accessing shared data structures

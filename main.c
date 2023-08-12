@@ -129,8 +129,18 @@ int main(int argc, char* argv[]) {
 
     printValues(rank, points, numPointsPerWorker, tValues, tCount); // TODO df delete this
     fprintf(stderr, "rank: %d, tCount: %d\n", rank, tCount);
+
+    // Allocate memory for a new array of points for each worker process
+    FinalPoint* workerPointsTcount = (FinalPoint*)malloc(numPointsPerWorker * tCount * sizeof(FinalPoint));
+    if (workerPointsTcount == NULL) {
+        fprintf(stderr, "Memory allocation error\n");
+        free(tValues); // Free previously allocated memory for tValues
+        free(points);
+        MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
+    }
+
     // Perform GPU-accelerated computation using CUDA
-    if (!performGPUComputation(points, numPointsPerWorker, tValues, tCount)) {
+    if (!performGPUComputation(points, numPointsPerWorker, tValues, tCount, workerPointsTcount)) {
         fprintf(stderr, "Error performing GPU computation\n");
         fprintf(stderr, "numPointsPerWorker: %d, tCount: %d\n", numPointsPerWorker, tCount);
         fprintf(stderr, "RANK: %d, N: %d, size: %d, K: %d\n", rank, N, size, K);
@@ -244,6 +254,7 @@ int main(int argc, char* argv[]) {
     // }
 
     // Free allocated memory
+    free(workerPointsTcount);
     free(points);
     free(tValues);
 

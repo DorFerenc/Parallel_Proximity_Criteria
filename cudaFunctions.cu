@@ -10,33 +10,33 @@
  * @param numPoints Number of points to process.
  * @param tValues Array of t values for coordinate computation.
  */
-__global__ void computeCoordinatesKernel(Point* points, int numPoints, double* tValues, int tCount) {
+__global__ void computeCoordinatesKernel(Point* points, int numPoints, double* tValues, int tCount, FinalPoint* finalPoints) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (idx >= numPoints) return;
     if (idx < numPoints) {
-        Point* p = &points[idx];
+        // Point* p = &points[idx];
         for (int i = 0; i < tCount; i++) {
             double t = (tValues[i]);
-            // // Get the point parameters.
-            // double x1 = points[idx].x1;
-            // double x2 = points[idx].x2;
-            // double a = points[idx].a;
-            // double b = points[idx].b;
+            // Get the point parameters.
+            double x1 = points[idx].x1;
+            double x2 = points[idx].x2;
+            double a = points[idx].a;
+            double b = points[idx].b;
 
-            // // Compute the x and y coordinates.
-            // // double x = ((x2 - x1) / 2) * sin(t * M_PI / 2) + (x2 + x1) / 2;
-            // double x = (((x2 - x1) / 2) * sin(t * M_PI / 2) + (x2 + x1) / 2);
-            // double y = a * x + b;
+            // Compute the x and y coordinates.
+            // double x = ((x2 - x1) / 2) * sin(t * M_PI / 2) + (x2 + x1) / 2;
+            double x = (((x2 - x1) / 2) * sin(t * M_PI / 2) + (x2 + x1) / 2);
+            double y = a * x + b;
 
-            // // Store the coordinates in the point.
-            // points[idx].x = x;
-            // points[idx].y = y;
+            // Store the coordinates in the point.
+            finalPoints[i].x = x;
+            finalPoints[i].y = y;
 
             // p->x[i] = ((p->x2 - p->x1) / 2.0) * sin(t * M_PI / 2.0) + (p->x2 + p->x1) / 2.0;
             // p->y[i] = p->a * p->x[i] + p->b;
-            p[idx].x = ((p->x2 - p->x1) / 2.0) * sin(t * M_PI / 2.0) + (p->x2 + p->x1) / 2.0;
-            p[idx].y = p->a * p[i].x + p->b;;
+            // p[idx].x = ((p->x2 - p->x1) / 2.0) * sin(t * M_PI / 2.0) + (p->x2 + p->x1) / 2.0;
+            // p[idx].y = p->a * p[i].x + p->b;;
         }
     }
 }
@@ -138,15 +138,24 @@ __global__ void computeCoordinatesKernel(Point* points, int numPoints, double* t
 
 
 
-int performGPUComputation(Point* points, int numPoints, double* tValues, int tCount) {
+int performGPUComputation(Point* points, int numPoints, double* tValues, int tCount, FinalPoint* finalPoints) {
     Point* d_points = NULL;
+    FinalPoint* d_finalPoints = NULL;
     double* d_tValues = NULL; // GPU memory for tValues
     cudaError_t cudaStatus;
 
     // Allocate GPU memory for points
     cudaStatus = cudaMalloc((void**)&d_points, numPoints * sizeof(Point));
     if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "Error allocating GPU memory: %s\n", cudaGetErrorString(cudaStatus));
+        fprintf(stderr, "Error allocating GPU memory for points: %s\n", cudaGetErrorString(cudaStatus));
+        return 0;
+    }
+
+    // Allocate GPU memory for d_finalPoints
+    cudaStatus = cudaMalloc((void**)&d_finalPoints, numPoints * tCount * sizeof(FinalPoint));
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "Error allocating GPU memory for d_finalPoints: %s\n", cudaGetErrorString(cudaStatus));
+        cudaFree(d_points);
         return 0;
     }
 
@@ -155,14 +164,28 @@ int performGPUComputation(Point* points, int numPoints, double* tValues, int tCo
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "Error allocating GPU memory for tValues: %s\n", cudaGetErrorString(cudaStatus));
         cudaFree(d_points);
+        cudaFree(d_finalPoints);
         return 0;
     }
     
     // Copy points data from host to device
     cudaStatus = cudaMemcpy(d_points, points, numPoints * sizeof(Point), cudaMemcpyHostToDevice);
     if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "Error copying data to GPU: %s\n", cudaGetErrorString(cudaStatus));
+        fprintf(stderr, "Error copying points data to GPU: %s\n", cudaGetErrorString(cudaStatus));
         cudaFree(d_points);
+        cudaFree(d_finalPoints);
+        cudaFree(d_tValues);
+        return 0;
+    }
+
+        
+    // Copy points data from host to device
+    cudaStatus = cudaMemcpy(d_finalPoints, points, numPoints * tCount *  sizeof(FinalPoint), cudaMemcpyHostToDevice);
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "Error copying d_finalPoints data to GPU: %s\n", cudaGetErrorString(cudaStatus));
+        cudaFree(d_points);
+        cudaFree(d_finalPoints);
+        cudaFree(d_tValues);
         return 0;
     }
 
@@ -172,6 +195,7 @@ int performGPUComputation(Point* points, int numPoints, double* tValues, int tCo
         fprintf(stderr, "Error copying data to GPU for tValues: %s\n", cudaGetErrorString(cudaStatus));
         cudaFree(d_points);
         cudaFree(d_tValues);
+        cudaFree(d_finalPoints);
         return 0;
     }
 
@@ -189,28 +213,44 @@ int performGPUComputation(Point* points, int numPoints, double* tValues, int tCo
     }
 
     // Compute coordinates on GPU using CUDA kernel
-    computeCoordinatesKernel<<<numBlocks, threadsPerBlock>>>(d_points, numPoints, d_tValues, tCount);
+    computeCoordinatesKernel<<<numBlocks, threadsPerBlock>>>(d_points, numPoints, d_tValues, tCount, d_finalPoints);
 
     // Check for kernel launch errors
     cudaStatus = cudaGetLastError();
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "Error launching GPU kernel: %s\n", cudaGetErrorString(cudaStatus));
         cudaFree(d_points);
+        cudaFree(d_tValues);
+        cudaFree(d_finalPoints);
         return 0;
     }
 
     cudaDeviceSynchronize(); // Wait for GPU computations to complete
 
     // Copy computed data back to host
-    cudaStatus = cudaMemcpy(points, d_points, numPoints * sizeof(Point), cudaMemcpyDeviceToHost);
+    cudaStatus = cudaMemcpy(finalPoints, d_finalPoints, numPoints * tCount * sizeof(FinalPoint), cudaMemcpyDeviceToHost);
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "Error copying data back from GPU: %s\n", cudaGetErrorString(cudaStatus));
         cudaFree(d_points);
+        cudaFree(d_tValues);
+        cudaFree(d_finalPoints);
         return 0;
     }
 
+    // // Copy computed data back to host
+    // cudaStatus = cudaMemcpy(points, d_points, numPoints * sizeof(Point), cudaMemcpyDeviceToHost);
+    // if (cudaStatus != cudaSuccess) {
+    //     fprintf(stderr, "Error copying data back from GPU: %s\n", cudaGetErrorString(cudaStatus));
+    //     cudaFree(d_points);
+    //     cudaFree(d_tValues);
+    //     cudaFree(d_finalPoints);
+    //     return 0;
+    // }
+
     // Free GPU memory
     cudaFree(d_points);
+    cudaFree(d_tValues);
+    cudaFree(d_finalPoints);
     printf("GPU computation completed successfully.\n"); // TODO df delete this
     return 1; // Success
 }

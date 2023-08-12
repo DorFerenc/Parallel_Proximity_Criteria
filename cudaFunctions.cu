@@ -2,6 +2,29 @@
 #include <helper_cuda.h>
 #include "myProto.h"
 
+// /**
+//  * CUDA kernel to compute the coordinates (x, y) for each point.
+//  * Each thread processes one point.
+//  *
+//  * @param points Array of points to compute coordinates for.
+//  * @param numPoints Number of points to process.
+//  * @param tValues Array of t values for coordinate computation.
+//  */
+// __global__ void computeCoordinatesKernel(Point* points, int numPoints, double* tValues, int tCount) {
+//     int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+//     if (idx < numPoints) {
+//         Point* p = &points[idx];
+//         for (int i = 0; i <= tCount; i++) {
+//             double t = tValues[i];
+//             p->x[i] = ((p->x2 - p->x1) / 2.0) * sin(t * M_PI / 2.0) + (p->x2 + p->x1) / 2.0;
+//             p->y[i] = p->a * p->x[i] + p->b;
+//             // p[i].x = ((p->x2 - p->x1) / 2.0) * sin(t * M_PI / 2.0) + (p->x2 + p->x1) / 2.0;
+//             // p[i].y = p->a * p[i].x + p->b;;
+//         }
+//     }
+// }
+
 /**
  * CUDA kernel to compute the coordinates (x, y) for each point.
  * Each thread processes one point.
@@ -9,21 +32,20 @@
  * @param points Array of points to compute coordinates for.
  * @param numPoints Number of points to process.
  * @param tValues Array of t values for coordinate computation.
+ * @param tCount Number of t values.
  */
 __global__ void computeCoordinatesKernel(Point* points, int numPoints, double* tValues, int tCount) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (idx < numPoints) {
         Point* p = &points[idx];
-        for (int i = 0; i <= tCount; i++) {
-            double t = tValues[i];
-            // p->x[i] = ((p->x2 - p->x1) / 2.0) * sin(t * M_PI / 2.0) + (p->x2 + p->x1) / 2.0;
-            // p->y[i] = p->a * p->x[i] + p->b;
-            p[i].x = ((p->x2 - p->x1) / 2.0) * sin(t * M_PI / 2.0) + (p->x2 + p->x1) / 2.0;
-            p[i].y = p->a * p[i].x + p->b;;
-        }
+        double t = tValues[threadIdx.x]; // Each thread handles a single t value
+
+        p[threadIdx.x].x = ((p->x2 - p->x1) / 2.0) * sin(t * M_PI / 2.0) + (p->x2 + p->x1) / 2.0;
+        p[threadIdx.x].y = p->a * p[threadIdx.x].x + p->b;
     }
 }
+
 
 int performGPUComputation(Point* points, int numPoints, double* tValues, int tCount) {
     Point* d_points = NULL;
@@ -62,6 +84,8 @@ int performGPUComputation(Point* points, int numPoints, double* tValues, int tCo
         cudaFree(d_points);
         return 0;
     }
+
+    cudaDeviceSynchronize(); // Wait for GPU computations to complete
 
     // Copy computed data back to host
     cudaStatus = cudaMemcpy(points, d_points, numPoints * sizeof(Point), cudaMemcpyDeviceToHost);

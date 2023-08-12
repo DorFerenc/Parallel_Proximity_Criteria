@@ -79,7 +79,7 @@ int performGPUComputation(Point* points, int numPoints, double* tValues, int tCo
 
         
     // Copy points data from host to device
-    cudaStatus = cudaMemcpy(d_finalPoints, points, numPoints * tCount *  sizeof(FinalPoint), cudaMemcpyHostToDevice);
+    cudaStatus = cudaMemcpy(d_finalPoints, finalPoints, numPoints * tCount *  sizeof(FinalPoint), cudaMemcpyHostToDevice);
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "Error copying d_finalPoints data to GPU: %s\n", cudaGetErrorString(cudaStatus));
         cudaFree(d_points);

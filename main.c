@@ -39,8 +39,8 @@ int main(int argc, char* argv[]) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    if (size != 2) {
-        fprintf(stderr, "This code is designed for two processes.\n");
+    if (size % 8 != 0 && size % 4 != 0 && size % 2 != 0) {
+        fprintf(stderr, "This code is designed for amount of process that can be divided by 8 or 4 or 2\n");
         MPI_Abort(MPI_COMM_WORLD, __LINE__); // Abort MPI execution
     }
 
@@ -76,7 +76,6 @@ int main(int argc, char* argv[]) {
         numPointsPerWorker = N / size;
         for (int i = 1; i < size; i++) {
             int startIdx = (i) * numPointsPerWorker;
-            int endIdx = (i == size - 1) ? N - 1 : startIdx + numPointsPerWorker - 1;
             
             // Send data to worker i
             MPI_Send(&numPointsPerWorker, 1, MPI_INT, i, 0, MPI_COMM_WORLD);

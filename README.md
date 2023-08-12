@@ -62,6 +62,30 @@ There were no 3 points found for any t.
 
 ____________________________________________________________________________________________________
 
+It seems like you want to implement a master-worker pattern using MPI to distribute computation tasks among multiple processes, and then perform distance calculations using OpenMP within each worker. Here's an outline of how you can achieve this:
+
+1. **Master Process (Rank 0):**
+
+   - Read input data and distribute necessary parameters and data to worker processes.
+   - Perform GPU-accelerated computation using CUDA.
+   - Receive results from worker and his own processes after computing workerPointsTcount with GPU.
+   - Collect and combine the results from all worker processes.
+   - Build a new array containing all points from each worker for all t values.
+   - Send the new FINAL_POINTS array to each worker.
+   - Perform Parallel Proximity Criteria Check using OpenMP on the new array.
+   - Collect and combine the results from all worker processes.
+   - Write the combined results to the output file.
+
+2. **Worker Processes (Rank 1 and beyond):**
+
+   - Receive parameters and data from the master process.
+   - Perform GPU-accelerated computation using CUDA.
+   - Send the computed results to the MASTER.
+   - Receive the new FINAL_POINTS array from the MASTER.
+   - Perform Parallel Proximity Criteria Check using OpenMP on the new array.
+   - Send computed results back to the master process.
+
+
 #### Problem Decomposition:
 
 1. **Dividing t Values:** Divide the t values into chunks, and assign each chunk to a different CPU core for Proximity Criteria checks.

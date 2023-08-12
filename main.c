@@ -2,14 +2,15 @@
 #include <stdlib.h>
 #include <mpi.h>
 #include <omp.h>
+#include <cstring>
 
 #include "point.h"
 #include "proximity_utils.h"
-#include "cuda_utils.h"
+#include "myProto.h"
 
-#define FILENAME "InputZONA.txt"
+#define FILENAME "InputSmall.txt"
 #define MASTER 0
-#defin SHOULD_TEST 0
+#define SHOULD_TEST 1
 
 int main(int argc, char* argv[]) {
     // Initialize MPI
@@ -24,17 +25,16 @@ int main(int argc, char* argv[]) {
         MPI_Abort(MPI_COMM_WORLD, __LINE__); // Abort MPI execution
     }
 
-    int numPointsPerWorker, K, tCount;
+    int numPointsPerWorker, K, tCount, N;
     double D;
     Point* points;
     double* tValues = NULL;
-    double t = 0.0;0 // Placeholder for t value
-    if (SHOULD_TEST)
-        Point* points_orig;
+    double t = 0.0; // Placeholder for t value
+    Point* points_orig;
 
     if (rank == MASTER) {
         // Master process reads input data and sends work to workers
-        int N;
+        // int N;
 
         // Read input data and exit if it fails
         if (!readInputData(FILENAME, &N, &K, &D, &tCount, &points)) {
@@ -100,12 +100,12 @@ int main(int argc, char* argv[]) {
     if (SHOULD_TEST) {
         // Allocate memory and copy the original points array for testing
         points_orig = (Point*)malloc(numPointsPerWorker * sizeof(Point));
-        if (points == NULL) {
+        if (points_orig == NULL) {
             fprintf(stderr, "Memory allocation error\n");
             free(tValues); // Free previously allocated memory for tValues
             MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
         }
-        memcpy(points_orig, points, numPoints * sizeof(Point));
+        memcpy(points_orig, points, numPointsPerWorker * sizeof(Point));
     }
 
     // Perform GPU-accelerated computation using CUDA
@@ -114,8 +114,8 @@ int main(int argc, char* argv[]) {
         MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
     }  
 
-     if (SHOULD_TEST)
-        void testCoordinates(points_orig, points,n umPoints, tValues, tCount); // Test the computed coordinates against expected coordinates 
+    if (SHOULD_TEST)
+        testCoordinates(points_orig, points, numPointsPerWorker, tValues, tCount); // Test the computed coordinates against expected coordinates 
 
     // Use OpenMP to parallelize Proximity Criteria check
     #pragma omp parallel for shared(points, numPointsPerWorker, K, D, tValues) private(t)
@@ -133,7 +133,7 @@ int main(int argc, char* argv[]) {
     // Send computed results back to the master using MPI_Send
     if (rank != MASTER)
         MPI_Send(points, numPointsPerWorker * sizeof(Point), MPI_BYTE, MASTER, 0, MPI_COMM_WORLD);
-    else 
+    else {
         // Create an array to collect results from workers
         Point* collectedResults = (Point*)malloc(N * sizeof(Point));
         if (collectedResults == NULL) {
@@ -149,7 +149,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Combine results from all processes and write to the output file
-        if (!combineResultsAndWrite(collectedResults, N, tValues, tCount)) {
+        if (!writeResults(collectedResults, N, tValues, tCount)) {
             fprintf(stderr, "Error writing results to output file\n");
             free(points);
             free(tValues);
@@ -158,18 +158,6 @@ int main(int argc, char* argv[]) {
         }
 
         free(collectedResults); 
-        // Master process receives results from all workers
-        // for (int i = 1; i < size; i++) {
-        //     MPI_Recv(&points[numPointsPerWorker * i], numPointsPerWorker * sizeof(Point), MPI_BYTE, i, 0, MPI_COMM_WORLD, &status);
-        // }
-
-        // // Write results to the output file using writeResults function
-        // if (!writeResults("Output.txt", points, N)) {
-        //     fprintf(stderr, "Error writing results to the output file\n");
-        //     free(points);
-        //     free(tValues);
-        //     MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
-        // }
     }
 
     // Free allocated memory

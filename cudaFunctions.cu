@@ -2,6 +2,14 @@
 #include <helper_cuda.h>
 #include "myProto.h"
 
+/**
+ * CUDA kernel to compute the coordinates (x, y) for each point.
+ * Each thread processes one point.
+ *
+ * @param points Array of points to compute coordinates for.
+ * @param numPoints Number of points to process.
+ * @param t Value of t for coordinate computation.
+ */
 __global__ void computeCoordinatesKernel(Point* points, int numPoints, double t) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -26,9 +34,11 @@ int performGPUComputation(Point* points, int numPoints, double t) {
         return 0;
     }
 
+    // Determine the block size and number of blocks for GPU kernel execution
+    int blockSize = 256; // Number of threads per block
+    int numBlocks = (numPoints + blockSize - 1) / blockSize; // Calculate number of blocks needed to process all points
+    
     // Compute coordinates on GPU using CUDA kernel
-    int blockSize = 256;
-    int numBlocks = (numPoints + blockSize - 1) / blockSize;
     computeCoordinatesKernel<<<numBlocks, blockSize>>>(d_points, numPoints, t);
 
     // Check for kernel launch errors

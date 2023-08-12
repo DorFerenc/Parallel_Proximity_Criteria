@@ -11,7 +11,6 @@
 
 #define FILENAME "InputSmall.txt"
 #define MASTER 0
-#define SHOULD_TEST 0
 
 void printValues(int rank, Point* points, int numPointsPerWorker, double* tValues, int tCount) {
     printf("Rank: %d\n", rank);
@@ -50,7 +49,6 @@ int main(int argc, char* argv[]) {
     Point* points;
     double* tValues = NULL;
     double t = 0.0; // Placeholder for t value
-    Point* points_orig;
 
     if (rank == MASTER) {
         // Master process reads input data and sends work to workers
@@ -115,19 +113,8 @@ int main(int argc, char* argv[]) {
         }
         MPI_Recv(points, numPointsPerWorker * sizeof(Point), MPI_BYTE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE); // Receive points array from the master process
     }
-    //Both MASTER and WORKERS perform:
-    
-    if (SHOULD_TEST) {
-        // Allocate memory and copy the original points array for testing
-        points_orig = (Point*)malloc(numPointsPerWorker * sizeof(Point));
-        if (points_orig == NULL) {
-            fprintf(stderr, "Memory allocation error\n");
-            free(tValues); // Free previously allocated memory for tValues
-            MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
-        }
-        memcpy(points_orig, points, numPointsPerWorker * sizeof(Point));
-    }
 
+    //Both MASTER and WORKERS perform:
     printValues(rank, points, numPointsPerWorker, tValues, tCount); // TODO df delete this
     fprintf(stderr, "rank: %d, tCount: %d, numPointsPerWorker: %d\n", rank, tCount, numPointsPerWorker);
 
@@ -147,16 +134,14 @@ int main(int argc, char* argv[]) {
         fprintf(stderr, "RANK: %d, N: %d, size: %d, K: %d\n", rank, N, size, K);
         MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
     }  
-
-    if (SHOULD_TEST)
-        testCoordinates(points_orig, points, numPointsPerWorker, tValues, tCount); // Test the computed coordinates against expected coordinates 
     
     SatisfiedInfo satisfiedInfos[tCount + 1]; // Create an array to hold satisfiedInfos
     // Initialize the satisfiedInfos array
     for (int j = 0; j <= tCount; j++) {
         satisfiedInfos[j].t = DBL_MAX; // Initialize t value to maximum double value
         for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
-            satisfiedInfos[j].satisfiedIndices[k] = -1; // Initialize satisfiedIndices to -1
+            satisfiedInfos[j].satisfiedIndices[k] = (-1); // Initialize satisfiedIndices to -1
+            printf("hey : be(-1)please: %d\n", satisfiedInfos[j].satisfiedIndices[k]);
         }
         satisfiedInfos[j].shouldPrint = 0;
     }
@@ -171,29 +156,37 @@ int main(int argc, char* argv[]) {
     //#pragma omp parallel for shared(points, numPointsPerWorker, K, D, tValues, satisfiedInfos, workerPointsTcount) private(t)
     for (int j = 0; j <= tCount; j++) {
         t = tValues[j];
+        satisfiedInfos[j].t = tValues[j];
         int currentPCPointsFound = 0;
         
         // Iterate through each point and perform Proximity Criteria check
         for (int i = 0; i < (numPointsPerWorker * tCount); i++) {
-            int result = checkProximityCriteria(workerPointsTcount[i], workerPointsTcount, (numPointsPerWorker * tCount), K, D, workerPointsTcount[i].tVal);
+            int result = checkProximityCriteria(workerPointsTcount[i], workerPointsTcount, (numPointsPerWorker * tCount), K, D);
 
             // Update satisfiedIndices if the current point satisfies Proximity Criteria
             if (result) {
                 if (currentPCPointsFound == 0) {
-                    satisfiedInfos[j].t = workerPointsTcount[i].tVal;
-                    satisfiedInfos[j].satisfiedIndices[i] = workerPointsTcount[i].id;
+                    satisfiedInfos[j].satisfiedIndices[currentPCPointsFound] = workerPointsTcount[i].id;
                     currentPCPointsFound++;
                 }
                 else {
-                    // check if point already added
+                    // Check if point already added
                     int alreadyExistFlag = 0;
-                    for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k ++) 
-                        if (satisfiedInfos[j].satisfiedIndices[k] == workerPointsTcount[i].id) 
+                    for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
+                        if (satisfiedInfos[j].satisfiedIndices[k] == workerPointsTcount[i].id) {
+                            // printf("alreadyExistFlag = 1 blaj: %d == workerPointsTcount[%d].id: %d, tval:%lf\n", satisfiedInfos[j].satisfiedIndices[k], i, workerPointsTcount[i].id, workerPointsTcount[i].tVal);
                             alreadyExistFlag = 1;
+                            break; // Exit the loop since the point is already added
+                        }
+                    }
                     if (!alreadyExistFlag) {
-                        satisfiedInfos[j].satisfiedIndices[i] = workerPointsTcount[i].id;
+                        satisfiedInfos[j].satisfiedIndices[currentPCPointsFound] = workerPointsTcount[i].id;
                         currentPCPointsFound++;
                     }
+                }
+                if (currentPCPointsFound >= MAX_NUM_SATISFIED_POINTS) {
+                    satisfiedInfos[j].shouldPrint = 1;
+                    break; // Three points satisfying Proximity Criteria found, exit loop
                 }
             }
             if (currentPCPointsFound >= MAX_NUM_SATISFIED_POINTS) {
@@ -203,15 +196,66 @@ int main(int argc, char* argv[]) {
         }
     }
 
-// At this point, the satisfiedInfos variable contains the correct values.
+    // At this point, the satisfiedInfos variable contains the correct values.
 
-
-    for (int i = 0; i < (numPointsPerWorker * tCount); i++) {
-        printf("rank: %d, satisfiedInfos[%d].t: %lf\n", rank, i, satisfiedInfos[i].t);
-        for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
-            printf("\t satisfiedInfos[%d].satisfiedIndices[%d]:%d\n", i, k, satisfiedInfos[i].satisfiedIndices[k]);
+    for (int i = 0; i <= tCount; i++) {
+        if (satisfiedInfos[i].shouldPrint) {
+            printf("Points ");
+            for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
+                if (satisfiedInfos[i].satisfiedIndices[k] != -1) {
+                    printf("pointID%d ", satisfiedInfos[i].satisfiedIndices[k]);
+                }
+            }
+            printf("satisfy Proximity Criteria at t = %.6f\n", satisfiedInfos[i].t);
         }
     }
+
+
+//     // Perform Parallel Proximity Criteria Check using OpenMP
+//     //#pragma omp parallel for shared(points, numPointsPerWorker, K, D, tValues, satisfiedInfos, workerPointsTcount) private(t)
+//     for (int j = 0; j <= tCount; j++) {
+//         t = tValues[j];
+//         int currentPCPointsFound = 0;
+        
+//         // Iterate through each point and perform Proximity Criteria check
+//         for (int i = 0; i < (numPointsPerWorker * tCount); i++) {
+//             int result = checkProximityCriteria(workerPointsTcount[i], workerPointsTcount, (numPointsPerWorker * tCount), K, D, workerPointsTcount[i].tVal);
+
+//             // Update satisfiedIndices if the current point satisfies Proximity Criteria
+//             if (result) {
+//                 if (currentPCPointsFound == 0) {
+//                     satisfiedInfos[j].t = workerPointsTcount[i].tVal;
+//                     satisfiedInfos[j].satisfiedIndices[i] = workerPointsTcount[i].id;
+//                     currentPCPointsFound++;
+//                 }
+//                 else {
+//                     // check if point already added
+//                     int alreadyExistFlag = 0;
+//                     for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k ++) 
+//                         if (satisfiedInfos[j].satisfiedIndices[k] == workerPointsTcount[i].id) 
+//                             alreadyExistFlag = 1;
+//                     if (!alreadyExistFlag) {
+//                         satisfiedInfos[j].satisfiedIndices[i] = workerPointsTcount[i].id;
+//                         currentPCPointsFound++;
+//                     }
+//                 }
+//             }
+//             if (currentPCPointsFound >= MAX_NUM_SATISFIED_POINTS) {
+//                 satisfiedInfos[j].shouldPrint = 1;
+//                 break; // Three points satisfying Proximity Criteria found, exit loop
+//             }
+//         }
+//     }
+
+// // At this point, the satisfiedInfos variable contains the correct values.
+
+
+//     for (int i = 0; i < (numPointsPerWorker * tCount); i++) {
+//         printf("rank: %d, satisfiedInfos[%d].t: %lf\n", rank, i, satisfiedInfos[i].t);
+//         for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
+//             printf("\t satisfiedInfos[%d].satisfiedIndices[%d]:%d\n", i, k, satisfiedInfos[i].satisfiedIndices[k]);
+//         }
+//     }
 
     
     // Send computed results back to the master using MPI_Send

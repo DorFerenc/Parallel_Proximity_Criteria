@@ -63,7 +63,7 @@ int readInputData(const char* filename, int* N, int* K, double* D, int* tCount, 
  * @param t The specific t value.
  * @return The result of the Proximity Criteria check.
  */
-int checkProximityCriteria(FinalPoint point, FinalPoint* points, int N, int K, double D, double t) {
+int checkProximityCriteria(FinalPoint point, FinalPoint* points, int N, int K, double D) {
     int closePoints = 0;
 
     //#pragma omp parallel for reduction(+:closePoints)

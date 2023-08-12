@@ -10,7 +10,7 @@
  * @param numPoints Number of points to process.
  * @param tValues Array of t values for coordinate computation.
  */
-__global__ void computeCoordinatesKernel(Point* points, int numPoints, double* tValues) {
+__global__ void computeCoordinatesKernel(Point* points, int numPoints, double* tValues, int tCount) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (idx < numPoints) {
@@ -23,7 +23,7 @@ __global__ void computeCoordinatesKernel(Point* points, int numPoints, double* t
     }
 }
 
-int performGPUComputation(Point* points, int numPoints, double* tValues) {
+int performGPUComputation(Point* points, int numPoints, double* tValues, int tCount) {
     Point* d_points = NULL;
 
     // Allocate GPU memory for points
@@ -42,7 +42,7 @@ int performGPUComputation(Point* points, int numPoints, double* tValues) {
     int numBlocks = (numPoints + blockSize - 1) / blockSize; // Calculate number of blocks needed to process all points
     
     // Compute coordinates on GPU using CUDA kernel
-    computeCoordinatesKernel<<<numBlocks, blockSize>>>(d_points, numPoints, tValues);
+    computeCoordinatesKernel<<<numBlocks, blockSize>>>(d_points, numPoints, tValues, tCount);
 
     // Check for kernel launch errors
     if (cudaGetLastError() != cudaSuccess) {

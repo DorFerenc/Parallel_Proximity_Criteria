@@ -109,7 +109,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Perform GPU-accelerated computation using CUDA
-    if (!performGPUComputation(points, numPointsPerWorker, tValues)) {
+    if (!performGPUComputation(points, numPointsPerWorker, tValues, tCount)) {
         fprintf(stderr, "Error performing GPU computation\n");
         MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
     }  

@@ -17,8 +17,10 @@ __global__ void computeCoordinatesKernel(Point* points, int numPoints, double* t
         Point* p = &points[idx];
         for (int i = 0; i <= tCount; i++) {
             double t = tValues[i];
-            p->x[i] = ((p->x2 - p->x1) / 2.0) * sin(t * M_PI / 2.0) + (p->x2 + p->x1) / 2.0;
-            p->y[i] = p->a * p->x[i] + p->b;
+            // p->x[i] = ((p->x2 - p->x1) / 2.0) * sin(t * M_PI / 2.0) + (p->x2 + p->x1) / 2.0;
+            // p->y[i] = p->a * p->x[i] + p->b;
+            p[i].x = ((p->x2 - p->x1) / 2.0) * sin(t * M_PI / 2.0) + (p->x2 + p->x1) / 2.0;
+            p[i].y = p->a * p[i].x + p->b;;
         }
     }
 }

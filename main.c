@@ -114,7 +114,7 @@ int main(int argc, char* argv[]) {
         for (int j = 0; j <= tCount; j++) {
             t = tValues[j];
             // Perform Proximity Criteria check for each point with specific t value
-            int result = checkProximityCriteria(points[i], K, D, t);
+            int result = checkProximityCriteria(points[i], points, numPointsPerWorker, K, D, t);
             // Update results or perform other necessary operations
         }
     }
@@ -122,6 +122,8 @@ int main(int argc, char* argv[]) {
     // Ensure thread safety for accessing shared data structures
     
     // Send computed results back to the master using MPI_Send
+    if (rank != MASTER)
+        MPI_Send(points, numPointsPerWorker * sizeof(Point), MPI_BYTE, MASTER, 0, MPI_COMM_WORLD);
 
     // Free allocated memory
     free(points);

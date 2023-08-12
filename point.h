@@ -11,11 +11,13 @@ typedef struct {
 typedef struct {
     int id;
     double x, y;
+    double tVal;
 } FinalPoint;
 
 typedef struct {
     double t; // The t value
     int satisfiedIndices[MAX_NUM_SATISFIED_POINTS]; // Array to hold indices of satisfied points
+    int shouldPrint;
 } SatisfiedInfo;
 
 void computeCoordinates(Point* point, double t);

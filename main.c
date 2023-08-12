@@ -158,11 +158,12 @@ int main(int argc, char* argv[]) {
         for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
             satisfiedInfos[j].satisfiedIndices[k] = -1; // Initialize satisfiedIndices to -1
         }
+        satisfiedInfos[j].shouldPrint = 0;
     }
 
     fprintf(stderr, "rank: %d, tCount: %d, numPointsPerWorker: %d\n", rank, tCount, numPointsPerWorker);
     for (int i = 0; i < (numPointsPerWorker * tCount); i++) {
-        printf("rank: %d workerPointsTcount %d:, id: %d x = %.2f, y = %.2f\n", rank, i, workerPointsTcount[i].id, workerPointsTcount[i].x, workerPointsTcount[i].y);
+        printf("rank: %d workerPointsTcount %d:, id: %d, tVal: %.2f x = %.2f, y = %.2f\n", rank, i, workerPointsTcount[i].id, workerPointsTcount[i].tVal, workerPointsTcount[i].x, workerPointsTcount[i].y);
     }
 
     // Perform Parallel Proximity Criteria Check using OpenMP
@@ -174,12 +175,12 @@ int main(int argc, char* argv[]) {
         
         // Iterate through each point and perform Proximity Criteria check
         for (int i = 0; i < (numPointsPerWorker * tCount); i++) {
-            int result = checkProximityCriteria(workerPointsTcount[i], workerPointsTcount, (numPointsPerWorker * tCount), K, D, t);
+            int result = checkProximityCriteria(workerPointsTcount[i], workerPointsTcount, (numPointsPerWorker * tCount), K, D, workerPointsTcount[i].tVal);
 
             // Update satisfiedIndices if the current point satisfies Proximity Criteria
             if (result) {
                 if (currentPCPointsFound == 0) {
-                    satisfiedInfos[j].t = t;
+                    satisfiedInfos[j].t = workerPointsTcount[i].tVal;
                     satisfiedInfos[j].satisfiedIndices[i] = workerPointsTcount[i].id;
                     currentPCPointsFound++;
                 }
@@ -196,6 +197,7 @@ int main(int argc, char* argv[]) {
                 }
             }
             if (currentPCPointsFound >= MAX_NUM_SATISFIED_POINTS) {
+                satisfiedInfos[j].shouldPrint = 1;
                 break; // Three points satisfying Proximity Criteria found, exit loop
             }
         }

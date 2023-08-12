@@ -32,6 +32,7 @@ __global__ void computeCoordinatesKernel(Point* points, int numPoints, double* t
             finalPoints[finalPointsIndex].x = x;
             finalPoints[finalPointsIndex].y = y;
             finalPoints[finalPointsIndex].id = points[currentPointIndex].id;
+            finalPoints[finalPointsIndex].tVal = t;
         }
     }
 }

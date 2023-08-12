@@ -13,6 +13,7 @@
 int main(int argc, char* argv[]) {
     // Initialize MPI
     int rank, size;
+    MPI_Status  status;
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -48,21 +49,58 @@ int main(int argc, char* argv[]) {
         }
 
         // Distribute input points and t values to workers
+        int numPointsPerWorker = N / size;
+        for (int i = 1; i < size; i++) {
+            int startIdx = (i - 1) * numPointsPerWorker;
+            int endIdx = (i == size - 1) ? N - 1 : startIdx + numPointsPerWorker - 1;
+            
+            // Send data to worker i
+            MPI_Send(&numPointsPerWorker, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+            MPI_Send(&K, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+            MPI_Send(&D, 1, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
+            MPI_Send(&tCount, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+            MPI_Send(tValues, tCount + 1, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
+            MPI_Send(&points[startIdx], numPointsPerWorker * sizeof(Point), MPI_BYTE, i, 0, MPI_COMM_WORLD);
+        }
         // Use MPI_Send and MPI_Recv for communication
         
         // Free allocated memory
         free(points);
         free(tValues);
-    } else if (rank == 1) {
+
+    } else if (rank != MASTER) {
         // Worker process
-        int N;
+        int numPointsPerWorker, K, tCount;
+        double D;
         Point* points;
+        double* tValues = NULL;
         double t = 0.0; // Placeholder for t value
 
-        // Receive input points and t values from the master
+        // Receive input data and configuration from the master process (rank 0)
+        MPI_Recv(&numPointsPerWorker, 1, MPI_INT, MASTER, 0, MPI_COMM_WORLD, &status);
+        MPI_Recv(&K, 1, MPI_INT, MASTER, 0, MPI_COMM_WORLD, &status);
+        MPI_Recv(&D, 1, MPI_DOUBLE, MASTER, 0, MPI_COMM_WORLD, &status);
+        MPI_Recv(&tCount, 1, MPI_INT, MASTER, 0, MPI_COMM_WORLD, &status);
+
+        // Allocate memory for tValues to hold t values for the worker
+        tValues = (double*)malloc((tCount + 1) * sizeof(double));
+        if (tValues == NULL) {
+            fprintf(stderr, "Memory allocation error\n");
+            MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
+        }
+        MPI_Recv(tValues, tCount + 1, MPI_DOUBLE, MASTER, 0, MPI_COMM_WORLD, &status); // Receive tValues array from the master process
+
+        // Allocate memory for points to hold the points data for the worker
+        points = (Point*)malloc(numPointsPerWorker * sizeof(Point));
+        if (points == NULL) {
+            fprintf(stderr, "Memory allocation error\n");
+            free(tValues); // Free previously allocated memory for tValues
+            MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
+        }
+        MPI_Recv(points, numPointsPerWorker * sizeof(Point), MPI_BYTE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE); // Receive points array from the master process
         
         // Perform GPU-accelerated computation using CUDA
-        performGPUComputation(points, N, t);
+        performGPUComputation(points, numPointsPerWorker, t);
 
         // Use OpenMP to parallelize Proximity Criteria check
         // Ensure thread safety for accessing shared data structures
@@ -71,6 +109,7 @@ int main(int argc, char* argv[]) {
         
         // Free allocated memory
         free(points);
+        free(tValues);
     }
 
     // Finalize MPI

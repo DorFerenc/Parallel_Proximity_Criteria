@@ -14,4 +14,3 @@ run:
 
 runOn2:
 	mpiexec -np 2 -machinefile mf -map-by node ./mpiCudaOpemMP
-

@@ -79,3 +79,5 @@
 #### Summary:
 
 This approach utilizes OpenMPI for inter-process communication, OpenMP for intra-process parallelization on CPU cores, and CUDA for GPU-accelerated computation. Dividing responsibilities among different components and addressing potential challenges will help you create an efficient and robust parallel solution for the "Parallel Implementation of Proximity Criteria" task in your computing environment.
+
+![image](https://github.com/DorFerenc/Parallel_Proximity_Criteria/assets/69848386/86a24b33-2e4f-4bf1-85db-0966de04184f)

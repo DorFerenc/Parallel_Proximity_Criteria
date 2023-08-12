@@ -10,7 +10,7 @@
 
 #define FILENAME "InputSmall.txt"
 #define MASTER 0
-#define SHOULD_TEST 1
+#define SHOULD_TEST 0
 
 int main(int argc, char* argv[]) {
     // Initialize MPI
@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Distribute input points and t values to workers
-        int numPointsPerWorker = N / size;
+        numPointsPerWorker = N / size;
         for (int i = 1; i < size; i++) {
             int startIdx = (i - 1) * numPointsPerWorker;
             int endIdx = (i == size - 1) ? N - 1 : startIdx + numPointsPerWorker - 1;
@@ -111,6 +111,8 @@ int main(int argc, char* argv[]) {
     // Perform GPU-accelerated computation using CUDA
     if (!performGPUComputation(points, numPointsPerWorker, tValues, tCount)) {
         fprintf(stderr, "Error performing GPU computation\n");
+        fprintf(stderr, "numPointsPerWorker: %d, tCount: %d\n", numPointsPerWorker, tCount);
+        fprintf(stderr, "RANK: %d, N: %d, size: %d, K: %d\n", rank, N, size, K);
         MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
     }  
 

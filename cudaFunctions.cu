@@ -6,30 +6,30 @@
  * CUDA kernel to compute the coordinates (x, y) for each point.
  * Each thread processes one point.
  *
- * @param points Array of points to compute coordinates for.
+ * @param points Array of points to compute coordinates with.
  * @param numPoints Number of points to process.
  * @param tValues Array of t values for coordinate computation.
+ * @param finalPoints Array of FinalPoint to compute coordinates for.
  */
 __global__ void computeCoordinatesKernel(Point* points, int numPoints, double* tValues, int tCount, FinalPoint* finalPoints) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-
-    // if (idx >= numPoints) return;
-    if (idx < numPoints) {
-        for (int i = 0; i <= tCount; i++) { //TODO check the <=
-            double t = (tValues[i]);
+    if (idx <= tCount) {
+        for (int currentPointIndex = 0; currentPointIndex < numPoints; currentPointIndex++) { //TODO check the <=
+            double t = (tValues[idx]);
             // Get the point parameters.
-            double x1 = points[idx].x1;
-            double x2 = points[idx].x2;
-            double a = points[idx].a;
-            double b = points[idx].b;
+            double x1 = points[currentPointIndex].x1;
+            double x2 = points[currentPointIndex].x2;
+            double a = points[currentPointIndex].a;
+            double b = points[currentPointIndex].b;
 
             // Compute the x and y coordinates.
             double x = (((x2 - x1) / 2) * sin(t * M_PI / 2) + (x2 + x1) / 2);
             double y = a * x + b;
 
             // Store the coordinates in the point.
-            finalPoints[i].x = x;
-            finalPoints[i].y = y;
+            finalPoints[idx * currentPointIndex].x = x;
+            finalPoints[idx * currentPointIndex].y = y;
+            finalPoints[idx * currentPointIndex].id = points[currentPointIndex].id;
         }
     }
 }
@@ -97,7 +97,8 @@ int performGPUComputation(Point* points, int numPoints, double* tValues, int tCo
 
     // Determine the block size and number of blocks for GPU kernel execution
     int threadsPerBlock = 256; // Number of threads per block
-    int numBlocks = (numPoints + threadsPerBlock - 1) / threadsPerBlock; // Calculate number of blocks needed to process all points
+    // int numBlocks = (numPoints + threadsPerBlock - 1) / threadsPerBlock; // Calculate number of blocks needed to process all points
+    int numBlocks = (tCount + threadsPerBlock) / threadsPerBlock; // Calculate number of blocks needed to process all points
     
     printf("Launching GPU kernel...\n"); // TODO df delete this
     printf("numPoints: %d, blockSize: %d\n", numPoints, threadsPerBlock);// TODO df delete this

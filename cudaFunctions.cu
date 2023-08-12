@@ -13,7 +13,7 @@
 __global__ void computeCoordinatesKernel(Point* points, int numPoints, double* tValues, int tCount, FinalPoint* finalPoints) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if (idx >= numPoints) return;
+    // if (idx >= numPoints) return;
     if (idx < numPoints) {
         for (int i = 0; i <= tCount; i++) { //TODO check the <=
             double t = (tValues[i]);

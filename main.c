@@ -179,14 +179,36 @@ int main(int argc, char* argv[]) {
     //     }
     // }
 
-    #pragma omp parallel for shared(points, numPointsPerWorker, K, D, tValues, satisfiedInfos, workerPointsTcount) private(t)
+    //Perform Proximity Criteria Check using OpenMP
+    // #pragma omp parallel for shared(points, numPointsPerWorker, K, D, tValues, satisfiedInfos, workerPointsTcount) private(t)
+    // for (int j = 0; j <= tCount; j++) {
+    //     t = tValues[j];
+    //     int currentPCPointsFound = 0;
+
+    //     // Iterate through each point and perform Proximity Criteria check
+    //     for (int i = 0; i < (numPointsPerWorker * tCount); i++) {
+    //         int result = checkProximityCriteria(workerPointsTcount[i], workerPointsTcount, numPointsPerWorker, K, D, t);
+
+    //         // Update satisfiedInfos if the current point satisfies Proximity Criteria
+    //         if (result) {
+    //             if (currentPCPointsFound == 0)
+    //                 satisfiedInfos[j].t = t; // Update t value
+    //             satisfiedInfos[j].satisfiedIndices[currentPCPointsFound] = workerPointsTcount[i].id; // Insert point's index in the list
+    //             currentPCPointsFound++;
+    //         }
+    //         if (currentPCPointsFound >= MAX_NUM_SATISFIED_POINTS)
+    //             break;
+    //     }
+    // }
+
+     #pragma omp parallel for shared(tValues, satisfiedInfos, workerPointsTcount) private(t)
     for (int j = 0; j <= tCount; j++) {
         t = tValues[j];
         int currentPCPointsFound = 0;
 
         // Iterate through each point and perform Proximity Criteria check
-        for (int i = 0; i < (numPointsPerWorker * tCount); i++) {
-            int result = checkProximityCriteria(workerPointsTcount[i], workerPointsTcount, numPointsPerWorker, K, D, t);
+        for (int i = j * numPointsPerWorker; i < (j + 1) * numPointsPerWorker; i++) {
+            int result = checkProximityCriteria(workerPointsTcount[i], workerPointsTcount, numPointsPerWorker * tCount, K, D, t);
 
             // Update satisfiedInfos if the current point satisfies Proximity Criteria
             if (result) {
@@ -199,9 +221,6 @@ int main(int argc, char* argv[]) {
                 break;
         }
     }
-
-
-    // Ensure thread safety for accessing shared data structures
     
     // Send computed results back to the master using MPI_Send
     if (rank != MASTER)

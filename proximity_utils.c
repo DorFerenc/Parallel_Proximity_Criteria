@@ -78,9 +78,6 @@ int checkProximityCriteria(Point point, Point* points, int N, int K, double D, d
     return closePoints >= K;
 }
 
-#include <stdio.h>
-#include "point.h"
-
 /**
  * Write results to the output file.
  *
@@ -127,7 +124,6 @@ int writeResults(const char* filename, Point* points, int N, double* tValues, in
     fclose(file);
     return 1;
 }
-
 
 // int writeResults(const char* filename, int tCount, double* tValues, Point* points, int N, int K, double D) {
 //     /*

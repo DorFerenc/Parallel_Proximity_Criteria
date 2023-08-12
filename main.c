@@ -11,6 +11,7 @@
 #define FILENAME "InputSmall.txt"
 #define MASTER 0
 #define SHOULD_TEST 1
+#define MAX_NUM_SATISFIED_POINTS 3
 
 int main(int argc, char* argv[]) {
     // Initialize MPI
@@ -116,37 +117,40 @@ int main(int argc, char* argv[]) {
 
     if (SHOULD_TEST)
         testCoordinates(points_orig, points, numPointsPerWorker, tValues, tCount); // Test the computed coordinates against expected coordinates 
-
-    // Use OpenMP to parallelize Proximity Criteria check
-    #pragma omp parallel for shared(points, numPointsPerWorker, K, D, tValues) private(t)
-    for (int i = 0; i < numPointsPerWorker; i++) {
-        for (int j = 0; j <= tCount; j++) {
-            t = tValues[j];
-            // Perform Proximity Criteria check for each point with specific t value
+    
+    #pragma omp parallel for shared(points, numPointsPerWorker, K, D, tValues, satisfiedInfos) private(t)
+    for (int j = 0; j <= tCount; j++) {
+        t = tValues[j];
+        int currentPCPointsFound = 0;
+    
+        // Iterate through each point and perform Proximity Criteria check
+        for (int i = 0; i < numPointsPerWorker; i++) {
             int result = checkProximityCriteria(points[i], points, numPointsPerWorker, K, D, t);
-            // Update results or perform other necessary operations
+
+            // Update satisfiedInfos if the current point satisfies Proximity Criteria
+            if (result) {
+                if (currentPCPointsFound == 0)
+                    satisfiedInfos[j].t = t // Update t value
+                satisfiedInfos.satisfiedIndices[currentPCPointsFound] = i // Insert point's index in the list
+                currentPCPointsFound++;
+            }
+            if (currentPCPointsFound >= MAX_NUM_SATISFIED_POINTS)
+                break;
         }
     }
+
 
     // Ensure thread safety for accessing shared data structures
     
     // Send computed results back to the master using MPI_Send
     if (rank != MASTER)
-        MPI_Send(points, numPointsPerWorker * sizeof(Point), MPI_BYTE, MASTER, 0, MPI_COMM_WORLD);
+        MPI_Send(satisfiedInfos, tCount * sizeof(SatisfiedInfo), MPI_BYTE, MASTER, 0, MPI_COMM_WORLD);  // Send the satisfiedInfos array to the master
     else {
-        // Create an array to collect results from workers
-        Point* collectedResults = (Point*)malloc(N * sizeof(Point));
-        if (collectedResults == NULL) {
-            fprintf(stderr, "Memory allocation error\n");
-            free(points);
-            free(tValues);
-            MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
-        }
+        SatisfiedInfo collectedSatisfiedInfos[size][tCount]; // Create an array to collect satisfiedInfos from workers
 
-        // Collect results from worker processes
-        for (int i = 1; i < size; i++) {
-            MPI_Recv(&collectedResults[(i - 1) * numPointsPerWorker], numPointsPerWorker * sizeof(Point), MPI_BYTE, i, 0, MPI_COMM_WORLD, &status);
-        }
+        // Receive satisfiedInfos from worker processes
+        for (int i = 1; i < size; i++)
+            MPI_Recv(&collectedSatisfiedInfos[i], tCount * sizeof(SatisfiedInfo), MPI_BYTE, i, 0, MPI_COMM_WORLD, &status);
 
         // Combine results from all processes and write to the output file
         if (!writeResults("Output.txt", collectedResults, N, tValues, tCount)) {

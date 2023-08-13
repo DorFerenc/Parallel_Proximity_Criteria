@@ -158,6 +158,7 @@ int main(int argc, char* argv[]) {
         size_t totalDataSize = size * numPointsPerWorker * tCount * sizeof(FinalPoint);  // Calculate the total size of data to receive
         allWorkerPointsTcount = (FinalPoint *)malloc(totalDataSize);
         MPI_Recv(allWorkerPointsTcount, totalDataSize, MPI_BYTE, MASTER, 0, MPI_COMM_WORLD, &status);
+        printf("Rank %d received merged data from the master.\n", rank); // TODO df delete
     }
 
     free(workerPointsTcount);
@@ -168,9 +169,12 @@ int main(int argc, char* argv[]) {
     double numberAllPoints = (size * numPointsPerWorker * tCount);
     
     SatisfiedInfo localSatisfiedInfos[chunkSize]; // Create an array to hold localSatisfiedInfos
+
+    fprintf(stderr, "Rank %d: myStartIndex = %d, myEndIndex = %d, chunkSize = %d\n", rank, myStartIndex, myEndIndex, chunkSize);// TODO df delete
+
     // Initialize the satisfiedInfos array
-    for (int j = 0; j <= chunkSize; j++) {
-        localSatisfiedInfos[j].t = DBL_MAX; // Initialize t value to maximum double value
+    for (int j = 0; j < chunkSize; j++) {
+        localSatisfiedInfos[j].t = 0.0; // Initialize t value to maximum double value
         for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++)
             localSatisfiedInfos[j].satisfiedIndices[k] = (-1); // Initialize satisfiedIndices to -1
         localSatisfiedInfos[j].shouldPrint = 0;
@@ -191,10 +195,9 @@ int main(int argc, char* argv[]) {
 
     for (int j = myStartIndex; j < myEndIndex; j++) {
         double currentT = tValues[j];
-        localSatisfiedInfos[j].t =currentT;
+        localSatisfiedInfos[j - myStartIndex].t =currentT;
         int currentSearchPointAmount = 0;
         int currentSatisfiedInfoIndiciesAmount = 0;
-
         for (int i = 0; i < numberAllPoints; i++) { //find all the points with the current tVal
             if (allWorkerPointsTcount[i].tVal == currentT) 
                 searchPoints[currentSearchPointAmount++] = allWorkerPointsTcount[i];
@@ -204,38 +207,44 @@ int main(int argc, char* argv[]) {
         for (int k = 0; k < currentSearchPointAmount; k++) {
             int result = checkProximityCriteria(searchPoints[k], searchPoints, (currentSearchPointAmount), K, D);
             if (result) {
-                localSatisfiedInfos[j].shouldPrint = 1;
+                fprintf(stderr, "Rank %d: OKOK? searchPoints[k].id:%d \n", rank, searchPoints[k].id);
+                localSatisfiedInfos[j - myStartIndex].shouldPrint = 1;
                 for (int r = 0; r < MAX_NUM_SATISFIED_POINTS; r++) {
-                    if (localSatisfiedInfos[j].satisfiedIndices[r] == searchPoints[k].id)
-                        localSatisfiedInfos[j].shouldPrint = 0;
+                    if (localSatisfiedInfos[j - myStartIndex].satisfiedIndices[r] == searchPoints[k].id)
+                    {
+                        localSatisfiedInfos[j - myStartIndex].shouldPrint = 0;
+                        fprintf(stderr, "Rank %d: why? searchPoints[k].id:%d \n", rank, searchPoints[k].id);
+                    }
                 }
-                if (localSatisfiedInfos[j].shouldPrint == 1)
-                    localSatisfiedInfos[j].satisfiedIndices[currentSatisfiedInfoIndiciesAmount++] = searchPoints[k].id;
+                if (localSatisfiedInfos[j - myStartIndex].shouldPrint == 1)
+                    localSatisfiedInfos[j - myStartIndex].satisfiedIndices[currentSatisfiedInfoIndiciesAmount++] = searchPoints[k].id;
             }
             if (currentSatisfiedInfoIndiciesAmount >= MAX_NUM_SATISFIED_POINTS)  
                 break;
         }
     }
 
-    fprintf(stderr, "rank: %d YEP here aswell\n", rank);
+    fprintf(stderr, "Rank %d: Done processing t values\n", rank);
     
-    // for (int i = 0; i < chunkSize; i++) {
-    //     if (localSatisfiedInfos[i].shouldPrint) {
-    //         printf("Points ");
-    //         for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
-    //             if (localSatisfiedInfos[i].satisfiedIndices[k] != -1) {
-    //                 printf("pointID%d ", localSatisfiedInfos[i].satisfiedIndices[k]);
-    //             }
-    //         }
-    //         printf("satisfy Proximity Criteria at t = %.6f\n", localSatisfiedInfos[i].t);
-    //     }
-    // }
+    for (int i = 0; i < chunkSize; i++) {
+        if (localSatisfiedInfos[i].shouldPrint) {
+            printf("Points ");
+            for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
+                if (localSatisfiedInfos[i].satisfiedIndices[k] != -1) {
+                    printf("pointID%d ", localSatisfiedInfos[i].satisfiedIndices[k]);
+                }
+            }
+            printf("satisfy Proximity Criteria at t = %.6f\n", localSatisfiedInfos[i].t);
+        }
+    }
 
     fprintf(stderr, "rank: %d redy for send recv\n", rank);
     
     // Send computed results back to the master using MPI_Send
-    if (rank != MASTER)
+    if (rank != MASTER) {
         MPI_Send(localSatisfiedInfos, chunkSize * sizeof(SatisfiedInfo), MPI_BYTE, MASTER, 0, MPI_COMM_WORLD);  // Send the satisfiedInfos array to the master
+        printf("Rank %d sent computed results to the master.\n", rank);
+    }
     else {
         SatisfiedInfo** collectedSatisfiedInfos = (SatisfiedInfo**)malloc(size * sizeof(SatisfiedInfo*));
         if (collectedSatisfiedInfos == NULL) {
@@ -266,6 +275,9 @@ int main(int argc, char* argv[]) {
         for (int i = 1; i < size; i++) {
             MPI_Recv(collectedSatisfiedInfos[i], (chunkSize) * sizeof(SatisfiedInfo), MPI_BYTE, i, 0, MPI_COMM_WORLD, &status);
         }
+
+        fprintf(stderr, "Rank %d: Done combining results and writing to output file\n", rank);
+
 
          // Combine results from all processes and write to the output file
         if (!writeResults("Output.txt", collectedSatisfiedInfos, size, N, tValues, tCount)) {

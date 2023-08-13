@@ -49,7 +49,7 @@ int main(int argc, char* argv[]) {
     Point* points;
     double* tValues = NULL;
     double t = 0.0; // Placeholder for t value
-    FinalPoint *allWorkerPointsTcount;
+    FinalPoint* allWorkerPointsTcount;
 
     if (rank == MASTER) {
         // Master process reads input data and sends work to workers
@@ -197,7 +197,7 @@ int main(int argc, char* argv[]) {
     }
 
     fprintf(stderr, "rank: %d got here also\n", rank);
-
+    fprintf(stderr, "(numPointsPerWorker * size): %d", (numPointsPerWorker * size));
     for (int j = myStartIndex; j < myEndIndex; j++) {
         double currentT = tValues[j];
         localSatisfiedInfos[j - myStartIndex].t =currentT;
@@ -208,15 +208,18 @@ int main(int argc, char* argv[]) {
                 if (allWorkerPointsTcount[i].tVal == currentT) 
                     fprintf(stderr, "rank: %d WorkerPointsTcount[%d].tVal:%lf, id: %d \n", rank, i, allWorkerPointsTcount[i].tVal, allWorkerPointsTcount[i].id);
             }
-            if (allWorkerPointsTcount[i].tVal == currentT) 
-                searchPoints[currentSearchPointAmount++] = allWorkerPointsTcount[i];
+            if (allWorkerPointsTcount[i].tVal == currentT) {
+                searchPoints[currentSearchPointAmount].tVal = allWorkerPointsTcount[i].tVal;
+                searchPoints[currentSearchPointAmount].id = allWorkerPointsTcount[i].id;
+                currentSearchPointAmount++;
+            }
             if (currentSearchPointAmount >= (numPointsPerWorker * size))  
                 break;              
         }
         for (int k = 0; k < currentSearchPointAmount; k++) {
             int result = checkProximityCriteria(searchPoints[k], searchPoints, (currentSearchPointAmount), K, D);
             if (result) {
-                fprintf(stderr, "Rank %d: OKOK? searchPoints[k].id:%d, searchPoints[k].tVal:%lf \n", rank, searchPoints[k].id, searchPoints[k].tVal);
+                fprintf(stderr, "Rank %d: OKOK? searchPoints[%d].id:%d, searchPoints[k].tVal:%lf \n", rank, k, searchPoints[k].id, searchPoints[k].tVal);
                 localSatisfiedInfos[j - myStartIndex].shouldPrint = 1;
                 for (int r = 0; r < MAX_NUM_SATISFIED_POINTS; r++) {
                     if (localSatisfiedInfos[j - myStartIndex].satisfiedIndices[r] == searchPoints[k].id)

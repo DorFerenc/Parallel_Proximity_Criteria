@@ -106,10 +106,10 @@ int performGPUComputation(Point* points, int numPoints, double* tValues, int tCo
     // printf("numPoints: %d, blockSize: %d\n", numPoints, threadsPerBlock);// TODO df delete this
     // printf("Launching GPU kernel with numBlocks: %d and threadsPerBlock: %d ...\n", numBlocks, threadsPerBlock);// TODO df delete this
 
-    printf("tValues:\n");
-    for (int i = 0; i <= tCount; i++) {
-        printf("t[%d] = %lf\n", i, tValues[i]);
-    }
+    // printf("tValues:\n");
+    // for (int i = 0; i <= tCount; i++) {
+    //     printf("t[%d] = %lf\n", i, tValues[i]);
+    // }
 
     // Compute coordinates on GPU using CUDA kernel
     computeCoordinatesKernel<<<numBlocks, threadsPerBlock>>>(d_points, numPoints, d_tValues, tCount, d_finalPoints);

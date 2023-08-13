@@ -135,36 +135,57 @@ int main(int argc, char* argv[]) {
         MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
     }  
 
-    printf("WORKER BLAH");
-    for (int i = 0; i < (numPointsPerWorker * tCount); i++) {
-        printf("rank: %d Point %d: id: %d, x = %.2f, y = %.2f, tVal:%lf\n", rank, i, workerPointsTcount[i].id, workerPointsTcount[i].x, workerPointsTcount[i].y, workerPointsTcount[i].tVal);
-    }
+    // printf("WORKER BLAH\n");
+    // for (int i = 0; i < (numPointsPerWorker * tCount); i++) {
+    //     printf("rank: %d Point %2d: id: %2d, x= %6.2f, y= %6.2f, tVal: %lf\n", rank, i, workerPointsTcount[i].id, workerPointsTcount[i].x, workerPointsTcount[i].y, workerPointsTcount[i].tVal);
+    // }
 
-    if (rank != MASTER)
-        MPI_Send(workerPointsTcount, numPointsPerWorker * tCount, MPI_BYTE, MASTER, 0, MPI_COMM_WORLD);
-    else {
-        size_t totalDataSize = size * numPointsPerWorker * tCount * sizeof(FinalPoint);  // Calculate the total size of data to receive
-        allWorkerPointsTcount = (FinalPoint *)malloc(totalDataSize);  // Allocate memory to store worker points data
-        size_t dataPerWorkerSize = numPointsPerWorker * tCount * sizeof(FinalPoint);  // Calculate the size of data per worker
-        memcpy(allWorkerPointsTcount, workerPointsTcount, dataPerWorkerSize); // Copy the master's own workerPointsTcount to allWorkerPointsTcount
-        // Receive data from each worker
+    // if (rank != MASTER)
+    //     MPI_Send(workerPointsTcount, numPointsPerWorker * tCount, MPI_BYTE, MASTER, 0, MPI_COMM_WORLD);
+    // else {
+    //     size_t totalDataSize = size * numPointsPerWorker * tCount * sizeof(FinalPoint);  // Calculate the total size of data to receive
+    //     allWorkerPointsTcount = (FinalPoint *)malloc(totalDataSize);  // Allocate memory to store worker points data
+    //     size_t dataPerWorkerSize = numPointsPerWorker * tCount * sizeof(FinalPoint);  // Calculate the size of data per worker
+    //     memcpy(allWorkerPointsTcount, workerPointsTcount, dataPerWorkerSize); // Copy the master's own workerPointsTcount to allWorkerPointsTcount
+    //     // Receive data from each worker
+    //     for (int source = 1; source < size; source++) {
+    //         MPI_Recv((char *)allWorkerPointsTcount + dataPerWorkerSize * source, dataPerWorkerSize, MPI_BYTE, source, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    //     }
+    //     // // Broadcast the merged data to all worker processes
+    //     // MPI_Bcast(allWorkerPointsTcount, numPointsPerWorker * tCount * size * sizeof(FinalPoint), MPI_BYTE, 0, MPI_COMM_WORLD);
+
+    //     // Distribute the merged data to all worker processes
+    //     for (int dest = 1; dest < size; dest++) 
+    //         MPI_Send(allWorkerPointsTcount, totalDataSize, MPI_BYTE, dest, 0, MPI_COMM_WORLD);
+    // }
+    // if (rank != MASTER) {
+    //     // Receive the merged workerPointsTcount data using broadcast from the master process
+    //     size_t totalDataSize = size * numPointsPerWorker * tCount * sizeof(FinalPoint);  // Calculate the total size of data to receive
+    //     allWorkerPointsTcount = (FinalPoint *)malloc(totalDataSize);
+    //     MPI_Recv(allWorkerPointsTcount, totalDataSize, MPI_BYTE, MASTER, 0, MPI_COMM_WORLD, &status);
+    // }
+
+    if (rank != MASTER) {
+        MPI_Send(workerPointsTcount, numPointsPerWorker * tCount * sizeof(FinalPoint), MPI_BYTE, MASTER, 0, MPI_COMM_WORLD);
+    } else {
+        allWorkerPointsTcount = (FinalPoint *)malloc(N * sizeof(FinalPoint));
+        memcpy(allWorkerPointsTcount, workerPointsTcount, numPointsPerWorker * tCount * sizeof(FinalPoint));
+
         for (int source = 1; source < size; source++) {
-            MPI_Recv((char *)allWorkerPointsTcount + dataPerWorkerSize * source, dataPerWorkerSize, MPI_BYTE, source, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv((char *)allWorkerPointsTcount + numPointsPerWorker * tCount * source * sizeof(FinalPoint), numPointsPerWorker * tCount * sizeof(FinalPoint), MPI_BYTE, source, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         }
-        // // Broadcast the merged data to all worker processes
-        // MPI_Bcast(allWorkerPointsTcount, numPointsPerWorker * tCount * size * sizeof(FinalPoint), MPI_BYTE, 0, MPI_COMM_WORLD);
 
-        // Distribute the merged data to all worker processes
-        for (int dest = 1; dest < size; dest++) 
-            MPI_Send(allWorkerPointsTcount, totalDataSize, MPI_BYTE, dest, 0, MPI_COMM_WORLD);
+        // Broadcast the merged data to all processes
+        MPI_Bcast(allWorkerPointsTcount, N * sizeof(FinalPoint), MPI_BYTE, MASTER, MPI_COMM_WORLD);
     }
+
     if (rank != MASTER) {
         // Receive the merged workerPointsTcount data using broadcast from the master process
-        size_t totalDataSize = size * numPointsPerWorker * tCount * sizeof(FinalPoint);  // Calculate the total size of data to receive
-        allWorkerPointsTcount = (FinalPoint *)malloc(totalDataSize);
-        MPI_Recv(allWorkerPointsTcount, totalDataSize, MPI_BYTE, MASTER, 0, MPI_COMM_WORLD, &status);
-        printf("Rank %d received merged data from the master.\n", rank); // TODO df delete
+        allWorkerPointsTcount = (FinalPoint *)malloc(N * sizeof(FinalPoint));
+        MPI_Bcast(allWorkerPointsTcount, N * sizeof(FinalPoint), MPI_BYTE, MASTER, MPI_COMM_WORLD);
+        printf("Rank %d received merged data.\n", rank); // TODO: Delete this line
     }
+
 
     free(workerPointsTcount);
     free(points);
@@ -172,20 +193,23 @@ int main(int argc, char* argv[]) {
     int myEndIndex = (rank + 1) * (tCount / size); // not inclusive (25/50/75/100) not (24/49/74/99)
     int chunkSize = myEndIndex - myStartIndex;
     double numberAllPoints = (size * numPointsPerWorker * tCount);
+
+    // printf("FULL FULL WORKER BLAH\n");
+    // for (int i = 0; i < (numberAllPoints); i++) {
+    //     printf("rank: %d Point %2d: id: %2d, x= %6.2f, y= %6.2f, tVal: %lf\n", rank, i, allWorkerPointsTcount[i].id, allWorkerPointsTcount[i].x, allWorkerPointsTcount[i].y, allWorkerPointsTcount[i].tVal);
+    // }
     
-    SatisfiedInfo localSatisfiedInfos[chunkSize]; // Create an array to hold localSatisfiedInfos
 
     fprintf(stderr, "Rank %d: myStartIndex = %d, myEndIndex = %d, chunkSize = %d\n", rank, myStartIndex, myEndIndex, chunkSize);// TODO df delete
 
     // Initialize the satisfiedInfos array
+    SatisfiedInfo localSatisfiedInfos[chunkSize]; // Create an array to hold localSatisfiedInfos
     for (int j = 0; j < chunkSize; j++) {
         localSatisfiedInfos[j].t = 0.0; // Initialize t value to maximum double value
         for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++)
             localSatisfiedInfos[j].satisfiedIndices[k] = (-1); // Initialize satisfiedIndices to -1
         localSatisfiedInfos[j].shouldPrint = 0;
     }
-
-    fprintf(stderr, "rank: %d got here\n", rank);
 
     // Allocate memory for a new array of points for each worker process
     FinalPoint* searchPoints = (FinalPoint*)malloc(numPointsPerWorker * size * sizeof(FinalPoint));
@@ -196,8 +220,7 @@ int main(int argc, char* argv[]) {
         MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
     }
 
-    fprintf(stderr, "rank: %d got here also\n", rank);
-    fprintf(stderr, "(numPointsPerWorker * size): %d", (numPointsPerWorker * size));
+    fprintf(stderr, "(numPointsPerWorker * size): %d\n", (numPointsPerWorker * size));
     for (int j = myStartIndex; j < myEndIndex; j++) {
         double currentT = tValues[j];
         localSatisfiedInfos[j - myStartIndex].t =currentT;
@@ -207,11 +230,13 @@ int main(int argc, char* argv[]) {
         for (int i = 0; i < numberAllPoints; i++) { //find all the points with the current tVal
             if (currentT == 0.000000) {
                 if (allWorkerPointsTcount[i].tVal == currentT) 
-                    fprintf(stderr, "rank: %d WorkerPointsTcount[%d].tVal:%lf, id: %d \n", rank, i, allWorkerPointsTcount[i].tVal, allWorkerPointsTcount[i].id);
+                    printf("rank: %d WorkerPointsTcount[%d].tVal:%lf, id: %d \n", rank, i, allWorkerPointsTcount[i].tVal, allWorkerPointsTcount[i].id);
             }
             if (allWorkerPointsTcount[i].tVal == currentT) {
                 searchPoints[currentSearchPointAmount].tVal = allWorkerPointsTcount[i].tVal;
                 searchPoints[currentSearchPointAmount].id = allWorkerPointsTcount[i].id;
+                searchPoints[currentSearchPointAmount].x = allWorkerPointsTcount[i].x;
+                searchPoints[currentSearchPointAmount].y = allWorkerPointsTcount[i].y;
                 currentSearchPointAmount++;
             }
             if (currentSearchPointAmount >= (numPointsPerWorker * size))  
@@ -220,7 +245,7 @@ int main(int argc, char* argv[]) {
         for (int k = 0; k < currentSearchPointAmount; k++) {
             int result = checkProximityCriteria(searchPoints[k], searchPoints, (currentSearchPointAmount), K, D);
             if (result) {
-                fprintf(stderr, "Rank %d: OKOK? searchPoints[%d].id:%d, searchPoints[k].tVal:%lf \n", rank, k, searchPoints[k].id, searchPoints[k].tVal);
+                printf("****FOUND Rank %d: OKOK? searchPoints[%d].id:%d, searchPoints[k].tVal:%lf \n", rank, k, searchPoints[k].id, searchPoints[k].tVal);
                 localSatisfiedInfos[j - myStartIndex].shouldPrint = 1;
                 int shouldADD = 1;
                 for (int r = 0; r < MAX_NUM_SATISFIED_POINTS; r++) {
@@ -228,10 +253,12 @@ int main(int argc, char* argv[]) {
                     {
                         shouldADD = 0;
                         localSatisfiedInfos[j - myStartIndex].shouldPrint = 0;
-                        fprintf(stderr, "Rank %d: why? searchPoints[k].id:%d \n", rank, searchPoints[k].id);
+                        printf("***NOT ADDED!!! RANK: %d: searchPoints[%d].id: %d, searchPoints[k].tVal:%lf\n", rank, k, searchPoints[k].id, searchPoints[k].tVal);
+                        break;
                     }
                 }
                 if (shouldADD) {
+                    printf("***ADDED RANK: %d: searchPoints[%d].id: %d, searchPoints[k].tVal:%lf\n", rank, k, searchPoints[k].id, searchPoints[k].tVal);
                     localSatisfiedInfos[j - myStartIndex].satisfiedIndices[currentSatisfiedInfoIndiciesAmount] = searchPoints[k].id;
                     currentSatisfiedInfoIndiciesAmount++;
                 }
@@ -241,7 +268,6 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    fprintf(stderr, "Rank %d: Done processing t values\n", rank);
     
     for (int i = 0; i < chunkSize; i++) {
         if (localSatisfiedInfos[i].shouldPrint) {
@@ -255,12 +281,10 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    fprintf(stderr, "rank: %d redy for send recv\n", rank);
     
     // Send computed results back to the master using MPI_Send
     if (rank != MASTER) {
         MPI_Send(localSatisfiedInfos, chunkSize * sizeof(SatisfiedInfo), MPI_BYTE, MASTER, 0, MPI_COMM_WORLD);  // Send the satisfiedInfos array to the master
-        printf("Rank %d sent computed results to the master.\n", rank);
     }
     else {
         SatisfiedInfo** collectedSatisfiedInfos = (SatisfiedInfo**)malloc(size * sizeof(SatisfiedInfo*));
@@ -286,15 +310,14 @@ int main(int argc, char* argv[]) {
                 free(tValues);
                 MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
             }
+            for (int j = 0; j < chunkSize; j++) 
+                collectedSatisfiedInfos[i][j].shouldPrint = 0; // Initialize shouldPrint to 0
         }
 
         // Receive satisfiedInfos from worker processes
         for (int i = 1; i < size; i++) {
             MPI_Recv(collectedSatisfiedInfos[i], (chunkSize) * sizeof(SatisfiedInfo), MPI_BYTE, i, 0, MPI_COMM_WORLD, &status);
         }
-
-        fprintf(stderr, "Rank %d: Done combining results and writing to output file\n", rank);
-
 
          // Combine results from all processes and write to the output file
         if (!writeResults("Output.txt", collectedSatisfiedInfos, size, N, tValues, tCount)) {
@@ -323,7 +346,7 @@ int main(int argc, char* argv[]) {
     free(tValues);
 
     // Finalize MPI
-    fprintf(stderr, "rank: %d FINISHEDv\n", rank);
+    fprintf(stderr, "rank: %d FINISHED\n", rank);
     MPI_Finalize();
 
     return 0;

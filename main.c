@@ -146,13 +146,18 @@ int main(int argc, char* argv[]) {
         for (int source = 1; source < size; source++) {
             MPI_Recv((char *)allWorkerPointsTcount + dataPerWorkerSize * source, dataPerWorkerSize, MPI_BYTE, source, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         }
-        // Broadcast the merged data to all worker processes
-        MPI_Bcast(allWorkerPointsTcount, numPointsPerWorker * tCount * size * sizeof(FinalPoint), MPI_BYTE, 0, MPI_COMM_WORLD);
+        // // Broadcast the merged data to all worker processes
+        // MPI_Bcast(allWorkerPointsTcount, numPointsPerWorker * tCount * size * sizeof(FinalPoint), MPI_BYTE, 0, MPI_COMM_WORLD);
+
+        // Distribute the merged data to all worker processes
+        for (int dest = 1; dest < size; dest++) 
+            MPI_Send(allWorkerPointsTcount, totalDataSize, MPI_BYTE, dest, 0, MPI_COMM_WORLD);
     }
     if (rank != MASTER) {
         // Receive the merged workerPointsTcount data using broadcast from the master process
-        allWorkerPointsTcount = (FinalPoint *)malloc(size * numPointsPerWorker * tCount * sizeof(FinalPoint));
-        MPI_Bcast(allWorkerPointsTcount, numPointsPerWorker * tCount * sizeof(FinalPoint), MPI_BYTE, 0, MPI_COMM_WORLD);
+        size_t totalDataSize = size * numPointsPerWorker * tCount * sizeof(FinalPoint);  // Calculate the total size of data to receive
+        allWorkerPointsTcount = (FinalPoint *)malloc(totalDataSize);
+        MPI_Recv(allWorkerPointsTcount, totalDataSize, MPI_BYTE, MASTER, 0, MPI_COMM_WORLD, &status);
     }
 
     free(workerPointsTcount);

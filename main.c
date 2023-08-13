@@ -207,7 +207,7 @@ int main(int argc, char* argv[]) {
         for (int k = 0; k < currentSearchPointAmount; k++) {
             int result = checkProximityCriteria(searchPoints[k], searchPoints, (currentSearchPointAmount), K, D);
             if (result) {
-                fprintf(stderr, "Rank %d: OKOK? searchPoints[k].id:%d \n", rank, searchPoints[k].id);
+                fprintf(stderr, "Rank %d: OKOK? searchPoints[k].id:%d, searchPoints[k].tVal:%lf \n", rank, searchPoints[k].id, searchPoints[k].tVal);
                 localSatisfiedInfos[j - myStartIndex].shouldPrint = 1;
                 for (int r = 0; r < MAX_NUM_SATISFIED_POINTS; r++) {
                     if (localSatisfiedInfos[j - myStartIndex].satisfiedIndices[r] == searchPoints[k].id)

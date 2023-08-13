@@ -268,57 +268,75 @@ int main(int argc, char* argv[]) {
         MPI_Send(localSatisfiedInfos, chunkSize * sizeof(SatisfiedInfo), MPI_BYTE, MASTER, 0, MPI_COMM_WORLD);  // Send the satisfiedInfos array to the master
     }
     else {
-        SatisfiedInfo** collectedSatisfiedInfos = (SatisfiedInfo**)malloc(size * sizeof(SatisfiedInfo*));
-        if (collectedSatisfiedInfos == NULL) {
-            fprintf(stderr, "Memory allocation error\n");
-            free(searchPoints);
-            free(allWorkerPointsTcount);
-            free(tValues);
-            MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
+        // SatisfiedInfo** collectedSatisfiedInfos = (SatisfiedInfo**)malloc(size * sizeof(SatisfiedInfo*));
+        // if (collectedSatisfiedInfos == NULL) {
+        //     fprintf(stderr, "Memory allocation error\n");
+        //     free(searchPoints);
+        //     free(allWorkerPointsTcount);
+        //     free(tValues);
+        //     MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
+        // }
+
+        // for (int i = 0; i < size; i++) {
+        //     collectedSatisfiedInfos[i] = (SatisfiedInfo*)malloc(chunkSize * sizeof(SatisfiedInfo));
+        //     if (collectedSatisfiedInfos[i] == NULL) {
+        //         fprintf(stderr, "Memory allocation error\n");
+        //         // Free previously allocated memory
+        //         for (int j = 0; j < i; j++) {
+        //             free(collectedSatisfiedInfos[j]);
+        //         }
+        //         free(collectedSatisfiedInfos);
+        //         free(searchPoints);
+        //         free(allWorkerPointsTcount);
+        //         free(tValues);
+        //         MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
+        //     }
+        //     for (int j = 0; j < chunkSize; j++) 
+        //         collectedSatisfiedInfos[i][j].shouldPrint = 0; // Initialize shouldPrint to 0
+        // }
+        // collectedSatisfiedInfos[MASTER] = localSatisfiedInfos;
+        // // Receive satisfiedInfos from worker processes
+        // for (int i = 1; i < size; i++) {
+        //     MPI_Recv(collectedSatisfiedInfos[i], (chunkSize * sizeof(SatisfiedInfo)), MPI_BYTE, i, 0, MPI_COMM_WORLD, &status);
+        // }
+
+        // Allocate memory for the collectedSatisfiedInfos array
+        SatisfiedInfo collectedSatisfiedInfos[size * chunkSize];
+        // Initialize collectedSatisfiedInfos shouldPrint to 0
+        for (int i = 0; i < size * chunkSize; i++) {
+            collectedSatisfiedInfos[i].shouldPrint = 0;
+        }
+        for (int i = 0; i < chunkSize; i++) {
+            collectedSatisfiedInfos[i] = localSatisfiedInfos[i];
         }
 
-        for (int i = 0; i < size; i++) {
-            collectedSatisfiedInfos[i] = (SatisfiedInfo*)malloc((chunkSize) * sizeof(SatisfiedInfo));
-            if (collectedSatisfiedInfos[i] == NULL) {
-                fprintf(stderr, "Memory allocation error\n");
-                // Free previously allocated memory
-                for (int j = 0; j < i; j++) {
-                    free(collectedSatisfiedInfos[j]);
-                }
-                free(collectedSatisfiedInfos);
-                free(searchPoints);
-                free(allWorkerPointsTcount);
-                free(tValues);
-                MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
-            }
-            for (int j = 0; j < chunkSize; j++) 
-                collectedSatisfiedInfos[i][j].shouldPrint = 0; // Initialize shouldPrint to 0
-        }
-        collectedSatisfiedInfos[MASTER] = localSatisfiedInfos;
-        // Receive satisfiedInfos from worker processes
+        // Receive and collect satisfiedInfos from worker processes
         for (int i = 1; i < size; i++) {
-            MPI_Recv(collectedSatisfiedInfos[i], (chunkSize) * sizeof(SatisfiedInfo), MPI_BYTE, i, 0, MPI_COMM_WORLD, &status);
+            SatisfiedInfo receivedData[chunkSize];
+            MPI_Recv(receivedData, chunkSize * sizeof(SatisfiedInfo), MPI_BYTE, i, 0, MPI_COMM_WORLD, &status);
+            for (int j = (i * chunkSize); j < ((i + 1) * chunkSize); j++) 
+                collectedSatisfiedInfos[j] = receivedData[j];
         }
 
          // Combine results from all processes and write to the output file
-        if (!writeResults("Output.txt", collectedSatisfiedInfos, size, N, tValues, tCount)) {
+        if (!writeResults("Output.txt", collectedSatisfiedInfos, size, chunkSize, N, tValues, tCount)) {
             fprintf(stderr, "Error writing results to output file\n");
             // Free allocated memory
-            for (int i = 0; i < size; i++) {
-                free(collectedSatisfiedInfos[i]);
-            }
-            free(collectedSatisfiedInfos);
+            // for (int i = 0; i < size; i++) {
+            //     free(collectedSatisfiedInfos[i]);
+            // }
+            // free(collectedSatisfiedInfos);
             free(allWorkerPointsTcount);
             free(searchPoints);
             free(tValues);
             MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
         }
 
-        // Free allocated memory
-        for (int i = 0; i < size; i++) {
-            free(collectedSatisfiedInfos[i]);
-        }
-        free(collectedSatisfiedInfos);
+        // // Free allocated memory
+        // for (int i = 0; i < size; i++) {
+        //     free(collectedSatisfiedInfos[i]);
+        // }
+        // free(collectedSatisfiedInfos);
     }
 
     // Free allocated memory

@@ -294,7 +294,7 @@ int main(int argc, char* argv[]) {
             for (int j = 0; j < chunkSize; j++) 
                 collectedSatisfiedInfos[i][j].shouldPrint = 0; // Initialize shouldPrint to 0
         }
-
+        collectedSatisfiedInfos[MASTER] = localSatisfiedInfos;
         // Receive satisfiedInfos from worker processes
         for (int i = 1; i < size; i++) {
             MPI_Recv(collectedSatisfiedInfos[i], (chunkSize) * sizeof(SatisfiedInfo), MPI_BYTE, i, 0, MPI_COMM_WORLD, &status);

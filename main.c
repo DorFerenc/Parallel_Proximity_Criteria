@@ -134,10 +134,11 @@ int main(int argc, char* argv[]) {
         MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
     }  
 
+    int myStartIndex = rank * (tCount / size);
+    int myEndIndex = 0; 
 
     if (rank != MASTER)
         MPI_Send(workerPointsTcount, numPointsPerWorker * tCount, MPI_BYTE, MASTER, 0, MPI_COMM_WORLD);
-
     else {
         size_t totalDataSize = size * numPointsPerWorker * tCount * sizeof(FinalPoint);  // Calculate the total size of data to receive
         FinalPoint *allWorkerPointsTcount = (FinalPoint *)malloc(totalDataSize);  // Allocate memory to store worker points data
@@ -150,23 +151,55 @@ int main(int argc, char* argv[]) {
         // Broadcast the merged data to all worker processes
         MPI_Bcast(allWorkerPointsTcount, numPointsPerWorker * tCount * size * sizeof(FinalPoint), MPI_BYTE, 0, MPI_COMM_WORLD);
     }
-    // Receive the merged workerPointsTcount data using broadcast from the master process
-    MPI_Bcast(workerPointsTcount, numPointsPerWorker * tCount * sizeof(FinalPoint), MPI_BYTE, 0, MPI_COMM_WORLD);
+    if (rank != MASTER) {
+        // Receive the merged workerPointsTcount data using broadcast from the master process
+        FinalPoint *allWorkerPointsTcount = (FinalPoint *)malloc(size * numPointsPerWorker * tCount * sizeof(FinalPoint));
+        MPI_Bcast(allWorkerPointsTcount, numPointsPerWorker * tCount * sizeof(FinalPoint), MPI_BYTE, 0, MPI_COMM_WORLD);
+    }
 
+    free(workerPointsTcount);
+    int myStartIndex = rank * (tCount / size);
+    int myEndIndex = (rank + 1) * (tCount / size); // not inclusive (25/50/75/100) not (24/49/74/99)
+    int chunkSize = myEndIndex - myStartIndex;
+    double numberAllPoints = (size * numPointsPerWorker * tCount);
     
-    SatisfiedInfo satisfiedInfos[tCount + 1]; // Create an array to hold satisfiedInfos
+    SatisfiedInfo localSatisfiedInfos[chunkSize]; // Create an array to hold satisfiedInfos
     // Initialize the satisfiedInfos array
-    for (int j = 0; j <= tCount; j++) {
+    for (int j = 0; j <= chunkSize; j++) {
         satisfiedInfos[j].t = DBL_MAX; // Initialize t value to maximum double value
         for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++)
             satisfiedInfos[j].satisfiedIndices[k] = (-1); // Initialize satisfiedIndices to -1
         satisfiedInfos[j].shouldPrint = 0;
     }
 
-    fprintf(stderr, "rank: %d, tCount: %d, numPointsPerWorker: %d\n", rank, tCount, numPointsPerWorker); // TODO df delete this
-    for (int i = 0; i < (numPointsPerWorker * tCount); i++) { // TODO df delete this
-        printf("rank: %d workerPointsTcount %d:, id: %d, tVal: %.2f x = %.2f, y = %.2f\n", rank, i, workerPointsTcount[i].id, workerPointsTcount[i].tVal, workerPointsTcount[i].x, workerPointsTcount[i].y);
-    } // TODO df delete this
+    // Allocate memory for a new array of points for each worker process
+    FinalPoint* searchPoints = (FinalPoint*)malloc(numPointsPerWorker * size * sizeof(FinalPoint));
+    if (searchPoints == NULL) {
+        fprintf(stderr, "Memory allocation error\n");
+        free(tValues); // Free previously allocated memory for tValues
+        free(points);
+        MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
+    }
+
+    for (int j = myStartIndex, j < myEndIndex; j++) {
+        double currentT = tValues[j];
+            int currentSearchPoint = 0;
+        for (int i = 0; i < numberAllPoints; i++) { //find all the points with the current tVal
+            if (allWorkerPointsTcount[i].tVal == currentT) 
+                searchPoints[currentSearchPoint++] = allWorkerPointsTcount[i];
+            if (currentSearchPoint >= (numPointsPerWorker * size))  
+                break;              
+        }
+        for (int k = 0; k < currentSearchPoint; k++) {
+            int result = checkProximityCriteria(searchPoints[k], allWorkerPointsTcount, (size * numPointsPerWorker * tCount), K, D);
+        }
+
+    }
+
+    // //fprintf(stderr, "rank: %d, tCount: %d, numPointsPerWorker: %d\n", rank, tCount, numPointsPerWorker); // TODO df delete this
+    // for (int i = 0; i < (numPointsPerWorker * tCount); i++) { // TODO df delete this
+    //     printf("rank: %d workerPointsTcount %d:, id: %d, tVal: %.2f x = %.2f, y = %.2f\n", rank, i, workerPointsTcount[i].id, workerPointsTcount[i].tVal, workerPointsTcount[i].x, workerPointsTcount[i].y);
+    // } // TODO df delete this
 
     // Perform Parallel Proximity Criteria Check using OpenMP
     // Perform Parallel Proximity Criteria Check using OpenMP

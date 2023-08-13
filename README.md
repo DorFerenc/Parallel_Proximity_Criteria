@@ -70,9 +70,11 @@ ________________________________________________________________________________
 
 3. **GPU-Accelerated Computation (CUDA):** Utilize GPU computation for efficient and parallel calculation of point coordinates (x, y) using CUDA kernels.
 
-4. **Proximity Criteria Check (Parallel OpenMP):** Parallelize the Proximity Criteria check for each t value across multiple CPU cores using OpenMP.
+4. **Master Data Gathering and Combination (OpenMPI):** The master process gathers all computed data from worker processes, combines it, and sends the new combined data to all processes.
 
-5. **Results Combination:** Collect and combine the results from all processes to generate the final output.
+5. **Parallel Proximity Criteria Check (Parallel OpenMP):** Each worker process, after receiving the combined data, uses OpenMP to parallelize the Proximity Criteria check for each t value.
+
+6. **Results Collection and Output (OpenMPI):** Collect and combine the results from all processes and generate the final output.
 
 #### Parallelization Strategy:
 
@@ -80,15 +82,24 @@ ________________________________________________________________________________
    - Rank 0 acts as the master, while other ranks act as workers.
    - The master reads input data and distributes work to worker processes.
    - Worker processes perform GPU-accelerated computation using CUDA and send results back to the master.
-   - The master then performs a Parallel Proximity Criteria check using OpenMP on the combined data.
 
 2. **GPU-Accelerated Computation (CUDA):**
    - Utilize the GPU to calculate point coordinates (x, y) efficiently using CUDA kernels.
    - Enable parallel processing of coordinate computations on the GPU for improved performance.
 
-3. **Parallel Proximity Criteria Check (OpenMP):**
-   - After receiving the combined data from worker processes, the master uses OpenMP to parallelize the Proximity Criteria check for each t value.
+3. **Master Data Gathering and Combination (OpenMPI):**
+   - The master receives computed data from worker processes.
+   - Combines the data to create a new, combined dataset.
+   - Distributes the combined dataset to all processes, including the master.
+
+4. **Parallel Proximity Criteria Check (OpenMP):**
+   - Each worker process, after receiving the combined data from the master, uses OpenMP to parallelize the Proximity Criteria check for each t value.
    - Ensure thread safety for accessing shared data structures during the parallel checks.
+
+5. **Results Collection and Output (OpenMPI):**
+   - All processes, including the master, send their computed results back to the master.
+   - The master collects and combines the results from all processes.
+   - The master then writes the final results to the output file.
 
 #### Division of Responsibilities:
 
@@ -96,21 +107,23 @@ ________________________________________________________________________________
   - Reads input data from the file.
   - Distributes work (points and t values) to worker processes.
   - Performs GPU-accelerated coordinate computation using CUDA.
-  - Collects and combines results from workers.
-  - Performs a Parallel Proximity Criteria check using OpenMP on the combined data.
+  - Gathers and combines data from worker processes.
+  - Distributes the combined dataset to all processes.
+  - Collects computed results from all processes.
   - Writes final results to the output file.
 
-- **Worker Processes (Rank 1 and beyond, OpenMPI + CUDA):**
+- **Worker Processes (Rank 1 and beyond, OpenMPI + CUDA + OpenMP):**
   - Receive work (parameters and data) from the master process.
   - Perform GPU-accelerated computation using CUDA for coordinate calculations.
   - Send computed results back to the master process.
+  - Receive the combined dataset from the master.
+  - Perform a Parallel Proximity Criteria check using OpenMP on the combined data.
 
 #### Summary:
 
-This refined approach maintains the Master-Worker architecture with MPI, utilizes GPU computation for efficient coordinate calculations, and combines the results using both CUDA and OpenMP. The master process handles data distribution, GPU-accelerated computation, and the final Parallel Proximity Criteria check before generating the output file. By optimizing and parallelizing these key steps, your parallel solution for the "Parallel Implementation of Proximity Criteria" task will be effective and robust within your computing environment.
+By inserting a step for master data gathering and combination, the refined approach enhances data consolidation and distribution. The master process ensures accurate combination of worker results and facilitates efficient parallel Proximity Criteria checks using OpenMP. This approach maintains the Master-Worker architecture with MPI, utilizes GPU computation for coordinate calculations, and combines results using CUDA and OpenMP. The final results are collected, combined, and outputted in an effective and parallel manner.
 
-![image](https://github.com/DorFerenc/Parallel_Proximity_Criteria/assets/69848386/86a24b33-2e4f-4bf1-85db-0966de04184f)
-
+![diagram-export-8_13_2023, 2_17_46 PM](https://github.com/DorFerenc/Parallel_Proximity_Criteria/assets/69848386/a85fcce5-71c3-4a70-af9e-dade56160320)
 
 #IMPORTANT
 

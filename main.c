@@ -49,6 +49,7 @@ int main(int argc, char* argv[]) {
     Point* points;
     double* tValues = NULL;
     double t = 0.0; // Placeholder for t value
+    FinalPoint *allWorkerPointsTcount;
 
     if (rank == MASTER) {
         // Master process reads input data and sends work to workers
@@ -134,14 +135,11 @@ int main(int argc, char* argv[]) {
         MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
     }  
 
-    int myStartIndex = rank * (tCount / size);
-    int myEndIndex = 0; 
-
     if (rank != MASTER)
         MPI_Send(workerPointsTcount, numPointsPerWorker * tCount, MPI_BYTE, MASTER, 0, MPI_COMM_WORLD);
     else {
         size_t totalDataSize = size * numPointsPerWorker * tCount * sizeof(FinalPoint);  // Calculate the total size of data to receive
-        FinalPoint *allWorkerPointsTcount = (FinalPoint *)malloc(totalDataSize);  // Allocate memory to store worker points data
+        allWorkerPointsTcount = (FinalPoint *)malloc(totalDataSize);  // Allocate memory to store worker points data
         size_t dataPerWorkerSize = numPointsPerWorker * tCount * sizeof(FinalPoint);  // Calculate the size of data per worker
         memcpy(allWorkerPointsTcount, workerPointsTcount, dataPerWorkerSize); // Copy the master's own workerPointsTcount to allWorkerPointsTcount
         // Receive data from each worker
@@ -153,7 +151,7 @@ int main(int argc, char* argv[]) {
     }
     if (rank != MASTER) {
         // Receive the merged workerPointsTcount data using broadcast from the master process
-        FinalPoint *allWorkerPointsTcount = (FinalPoint *)malloc(size * numPointsPerWorker * tCount * sizeof(FinalPoint));
+        allWorkerPointsTcount = (FinalPoint *)malloc(size * numPointsPerWorker * tCount * sizeof(FinalPoint));
         MPI_Bcast(allWorkerPointsTcount, numPointsPerWorker * tCount * sizeof(FinalPoint), MPI_BYTE, 0, MPI_COMM_WORLD);
     }
 
@@ -168,7 +166,7 @@ int main(int argc, char* argv[]) {
     for (int j = 0; j <= chunkSize; j++) {
         localSatisfiedInfos[j].t = DBL_MAX; // Initialize t value to maximum double value
         for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++)
-            localSatisfiedInfo[j].satisfiedIndices[k] = (-1); // Initialize satisfiedIndices to -1
+            localSatisfiedInfos[j].satisfiedIndices[k] = (-1); // Initialize satisfiedIndices to -1
         localSatisfiedInfos[j].shouldPrint = 0;
     }
 
@@ -181,9 +179,9 @@ int main(int argc, char* argv[]) {
         MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
     }
 
-    for (int j = myStartIndex, j < myEndIndex; j++) {
+    for (int j = myStartIndex; j < myEndIndex; j++) {
         double currentT = tValues[j];
-        localSatisfiedInfos[j].t =currentT
+        localSatisfiedInfos[j].t =currentT;
         int currentSearchPointAmount = 0;
         int currentSatisfiedInfoIndiciesAmount = 0;
 
@@ -196,13 +194,13 @@ int main(int argc, char* argv[]) {
         for (int k = 0; k < currentSearchPointAmount; k++) {
             int result = checkProximityCriteria(searchPoints[k], searchPoints, (currentSearchPointAmount), K, D);
             if (result) {
-                localSatisfiedInfo[j].shouldPrint = 1;
+                localSatisfiedInfos[j].shouldPrint = 1;
                 for (int r = 0; r < MAX_NUM_SATISFIED_POINTS; r++) {
-                    if (localSatisfiedInfo[j].satisfiedIndices[r] == searchPoints[k].id)
-                        localSatisfiedInfo[j].shouldPrint = 0;
+                    if (localSatisfiedInfos[j].satisfiedIndices[r] == searchPoints[k].id)
+                        localSatisfiedInfos[j].shouldPrint = 0;
                 }
-                if (localSatisfiedInfo[j].shouldPrint == 1)
-                    localSatisfiedInfo[j].satisfiedIndices[currentSatisfiedInfoIndiciesAmount++] = searchPoints[k].id;
+                if (localSatisfiedInfos[j].shouldPrint == 1)
+                    localSatisfiedInfos[j].satisfiedIndices[currentSatisfiedInfoIndiciesAmount++] = searchPoints[k].id;
             }
             if (currentSatisfiedInfoIndiciesAmount >= MAX_NUM_SATISFIED_POINTS)  
                 break;
@@ -210,22 +208,22 @@ int main(int argc, char* argv[]) {
     }
 
     
-    for (int i = 0; i <= tCount; i++) {
-        if (satisfiedInfos[i].shouldPrint) {
+    for (int i = 0; i <= chunkSize; i++) {
+        if (localSatisfiedInfos[i].shouldPrint) {
             printf("Points ");
             for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
-                if (satisfiedInfos[i].satisfiedIndices[k] != -1) {
-                    printf("pointID%d ", satisfiedInfos[i].satisfiedIndices[k]);
+                if (localSatisfiedInfos[i].satisfiedIndices[k] != -1) {
+                    printf("pointID%d ", localSatisfiedInfos[i].satisfiedIndices[k]);
                 }
             }
-            printf("satisfy Proximity Criteria at t = %.6f\n", satisfiedInfos[i].t);
+            printf("satisfy Proximity Criteria at t = %.6f\n", localSatisfiedInfos[i].t);
         }
     }
 
     
     // Send computed results back to the master using MPI_Send
     if (rank != MASTER)
-        MPI_Send(satisfiedInfos, tCount * sizeof(SatisfiedInfo), MPI_BYTE, MASTER, 0, MPI_COMM_WORLD);  // Send the satisfiedInfos array to the master
+        MPI_Send(localSatisfiedInfos, chunkSize * sizeof(SatisfiedInfo), MPI_BYTE, MASTER, 0, MPI_COMM_WORLD);  // Send the satisfiedInfos array to the master
     else {
         SatisfiedInfo** collectedSatisfiedInfos = (SatisfiedInfo**)malloc(size * sizeof(SatisfiedInfo*));
         if (collectedSatisfiedInfos == NULL) {
@@ -236,7 +234,7 @@ int main(int argc, char* argv[]) {
         }
 
         for (int i = 0; i < size; i++) {
-            collectedSatisfiedInfos[i] = (SatisfiedInfo*)malloc((tCount + 1) * sizeof(SatisfiedInfo));
+            collectedSatisfiedInfos[i] = (SatisfiedInfo*)malloc((chunkSize + 1) * sizeof(SatisfiedInfo));
             if (collectedSatisfiedInfos[i] == NULL) {
                 fprintf(stderr, "Memory allocation error\n");
                 // Free previously allocated memory
@@ -252,7 +250,7 @@ int main(int argc, char* argv[]) {
 
         // Receive satisfiedInfos from worker processes
         for (int i = 1; i < size; i++) {
-            MPI_Recv(collectedSatisfiedInfos[i], (tCount + 1) * sizeof(SatisfiedInfo), MPI_BYTE, i, 0, MPI_COMM_WORLD, &status);
+            MPI_Recv(collectedSatisfiedInfos[i], (chunkSize + 1) * sizeof(SatisfiedInfo), MPI_BYTE, i, 0, MPI_COMM_WORLD, &status);
         }
 
          // Combine results from all processes and write to the output file

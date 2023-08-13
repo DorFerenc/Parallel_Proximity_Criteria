@@ -198,39 +198,37 @@ int main(int argc, char* argv[]) {
         MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
     }
 
-    processLocalSatisfiedInfos(localSatisfiedInfos, allWorkerPointsTcount, numberAllPoints, tValues, K, D, numPointsPerWorker, size, myStartIndex, myEndIndex);
-
-    // for (int j = myStartIndex; j < myEndIndex; j++) {
-    //     double currentT = tValues[j];
-    //     localSatisfiedInfos[j - myStartIndex].t = currentT;
-    //     int currentSearchPointAmount = 0;
-    //     int currentSatisfiedInfoIndiciesAmount = 0;
-    //     for (int i = 0; i < numberAllPoints; i++) { //find all the points with the current tVal
-    //         if (allWorkerPointsTcount[i].tVal == currentT) {
-    //             searchPoints[currentSearchPointAmount++] = allWorkerPointsTcount[i];
-    //         }
-    //         if (currentSearchPointAmount >= (numPointsPerWorker * size))  
-    //             break;              
-    //     }
-    //     for (int k = 0; k < currentSearchPointAmount; k++) {
-    //         int result = checkProximityCriteria(searchPoints[k], searchPoints, (currentSearchPointAmount), K, D);
-    //         if (result) {
-    //             int shouldADD = 1;
-    //             for (int r = 0; r < MAX_NUM_SATISFIED_POINTS; r++) {
-    //                 if (localSatisfiedInfos[j - myStartIndex].satisfiedIndices[r] == searchPoints[k].id){
-    //                     shouldADD = 0;
-    //                     break;
-    //                 }
-    //             }
-    //             if (shouldADD)
-    //                 localSatisfiedInfos[j - myStartIndex].satisfiedIndices[currentSatisfiedInfoIndiciesAmount++] = searchPoints[k].id;
-    //         }
-    //         if (currentSatisfiedInfoIndiciesAmount >= MAX_NUM_SATISFIED_POINTS)   {
-    //             localSatisfiedInfos[j - myStartIndex].shouldPrint = 1;
-    //             break;
-    //         }
-    //     }
-    // }
+    for (int j = myStartIndex; j < myEndIndex; j++) {
+        double currentT = tValues[j];
+        localSatisfiedInfos[j - myStartIndex].t = currentT;
+        int currentSearchPointAmount = 0;
+        int currentSatisfiedInfoIndiciesAmount = 0;
+        for (int i = 0; i < numberAllPoints; i++) { //find all the points with the current tVal
+            if (allWorkerPointsTcount[i].tVal == currentT) {
+                searchPoints[currentSearchPointAmount++] = allWorkerPointsTcount[i];
+            }
+            if (currentSearchPointAmount >= (numPointsPerWorker * size))  
+                break;              
+        }
+        for (int k = 0; k < currentSearchPointAmount; k++) {
+            int result = checkProximityCriteria(searchPoints[k], searchPoints, (currentSearchPointAmount), K, D);
+            if (result) {
+                int shouldADD = 1;
+                for (int r = 0; r < MAX_NUM_SATISFIED_POINTS; r++) {
+                    if (localSatisfiedInfos[j - myStartIndex].satisfiedIndices[r] == searchPoints[k].id){
+                        shouldADD = 0;
+                        break;
+                    }
+                }
+                if (shouldADD)
+                    localSatisfiedInfos[j - myStartIndex].satisfiedIndices[currentSatisfiedInfoIndiciesAmount++] = searchPoints[k].id;
+            }
+            if (currentSatisfiedInfoIndiciesAmount >= MAX_NUM_SATISFIED_POINTS)   {
+                localSatisfiedInfos[j - myStartIndex].shouldPrint = 1;
+                break;
+            }
+        }
+    }
 
     int sum = 0;
     for (int i = 0; i < chunkSize; i++) {

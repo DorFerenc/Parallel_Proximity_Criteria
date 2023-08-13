@@ -173,4 +173,4 @@ This approach utilizes OpenMPI for inter-process communication, OpenMP for intra
 
 #IMPORTANT
 
-* tCount needs to be dividable by 8 or 4 or 2 DEPENDING on the number of proccess
+* tCount needs to be dividable 4 or 2 DEPENDING on the number of proccess

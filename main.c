@@ -39,8 +39,8 @@ int main(int argc, char* argv[]) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    if (size % 8 != 0 && size % 4 != 0 && size % 2 != 0) {
-        fprintf(stderr, "This code is designed for amount of process that can be divided by 8 or 4 or 2\n");
+    if (size != 4 && size != 2) {
+        fprintf(stderr, "This code is designed for 4 or 2 process\n");
         MPI_Abort(MPI_COMM_WORLD, __LINE__); // Abort MPI execution
     }
 

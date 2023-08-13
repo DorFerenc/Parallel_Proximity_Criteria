@@ -18,7 +18,7 @@ clean:
 
 run:
 # Run the executable with 2 processes
-	mpiexec -np 2 ./mpiCudaOpemMP
+	mpiexec -np 8 ./mpiCudaOpemMP
 
 runOn2:
 # Run the executable with 2 processes using a machinefile

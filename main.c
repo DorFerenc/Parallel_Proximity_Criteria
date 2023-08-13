@@ -135,6 +135,11 @@ int main(int argc, char* argv[]) {
         MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
     }  
 
+    printf("WORKER BLAH");
+    for (int i = 0; i < (numPointsPerWorker * tCount); i++) {
+        printf("rank: %d Point %d: id: %d, x = %.2f, y = %.2f, tVal:%lf\n", rank, i, workerPointsTcount[i].id, workerPointsTcount[i].x, workerPointsTcount[i].y, workerPointsTcount[i].tVal);
+    }
+
     if (rank != MASTER)
         MPI_Send(workerPointsTcount, numPointsPerWorker * tCount, MPI_BYTE, MASTER, 0, MPI_COMM_WORLD);
     else {
@@ -199,6 +204,10 @@ int main(int argc, char* argv[]) {
         int currentSearchPointAmount = 0;
         int currentSatisfiedInfoIndiciesAmount = 0;
         for (int i = 0; i < numberAllPoints; i++) { //find all the points with the current tVal
+            if (currentT == 0.000000) {
+                if (allWorkerPointsTcount[i].tVal == currentT) 
+                    fprintf(stderr, "rank: %d WorkerPointsTcount[%d].tVal:%lf, id: %d \n", rank, i, allWorkerPointsTcount[i].tVal, allWorkerPointsTcount[i].id);
+            }
             if (allWorkerPointsTcount[i].tVal == currentT) 
                 searchPoints[currentSearchPointAmount++] = allWorkerPointsTcount[i];
             if (currentSearchPointAmount >= (numPointsPerWorker * size))  

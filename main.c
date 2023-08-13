@@ -172,14 +172,14 @@ int main(int argc, char* argv[]) {
     int myStartIndex = rank * (tCount / size);
     int myEndIndex = (rank + 1) * (tCount / size); // not inclusive (25/50/75/100) not (24/49/74/99)
     int chunkSize = myEndIndex - myStartIndex;
-    double numberAllPoints = (size * numPointsPerWorker * tCount);
+    int numberAllPoints = (size * numPointsPerWorker * tCount);
 
     // printf("FULL FULL WORKER BLAH\n");
     // for (int i = 0; i < (numberAllPoints); i++) {
     //     printf("rank: %d Point %2d: id: %2d, x= %6.2f, y= %6.2f, tVal: %lf\n", rank, i, allWorkerPointsTcount[i].id, allWorkerPointsTcount[i].x, allWorkerPointsTcount[i].y, allWorkerPointsTcount[i].tVal);
     // }
     
-    fprintf(stderr, "Rank %d: myStartIndex = %d, myEndIndex = %d, chunkSize = %d\n", rank, myStartIndex, myEndIndex, chunkSize);// TODO df delete
+    // fprintf(stderr, "Rank %d: myStartIndex = %d, myEndIndex = %d, chunkSize = %d\n", rank, myStartIndex, myEndIndex, chunkSize);// TODO df delete
 
     // Initialize the satisfiedInfos array
     SatisfiedInfo localSatisfiedInfos[chunkSize]; // Create an array to hold localSatisfiedInfos
@@ -198,52 +198,95 @@ int main(int argc, char* argv[]) {
         MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
     }
 
+    // for (int j = myStartIndex; j < myEndIndex; j++) {
+    //     double currentT = tValues[j];
+    //     localSatisfiedInfos[j - myStartIndex].t = currentT;
+    //     int currentSearchPointAmount = 0;
+    //     int currentSatisfiedInfoIndiciesAmount = 0;
+    //     for (int i = 0; i < numberAllPoints; i++) { //find all the points with the current tVal
+    //         if (allWorkerPointsTcount[i].tVal == currentT) {
+    //             searchPoints[currentSearchPointAmount++] = allWorkerPointsTcount[i];
+    //         }
+    //         if (currentSearchPointAmount >= (numPointsPerWorker * size))  
+    //             break;              
+    //     }
+    //     for (int k = 0; k < currentSearchPointAmount; k++) {
+    //         int result = checkProximityCriteria(searchPoints[k], searchPoints, (currentSearchPointAmount), K, D);
+    //         if (result) {
+    //             int shouldADD = 1;
+    //             for (int r = 0; r < MAX_NUM_SATISFIED_POINTS; r++) {
+    //                 if (localSatisfiedInfos[j - myStartIndex].satisfiedIndices[r] == searchPoints[k].id){
+    //                     shouldADD = 0;
+    //                     break;
+    //                 }
+    //             }
+    //             if (shouldADD)
+    //                 localSatisfiedInfos[j - myStartIndex].satisfiedIndices[currentSatisfiedInfoIndiciesAmount++] = searchPoints[k].id;
+    //         }
+    //         if (currentSatisfiedInfoIndiciesAmount >= MAX_NUM_SATISFIED_POINTS)   {
+    //             localSatisfiedInfos[j - myStartIndex].shouldPrint = 1;
+    //             break;
+    //         }
+    //     }
+    // }
+
+    #pragma omp parallel for
     for (int j = myStartIndex; j < myEndIndex; j++) {
         double currentT = tValues[j];
         localSatisfiedInfos[j - myStartIndex].t = currentT;
         int currentSearchPointAmount = 0;
         int currentSatisfiedInfoIndiciesAmount = 0;
-        for (int i = 0; i < numberAllPoints; i++) { //find all the points with the current tVal
+        FinalPoint localSearchPoints[(numPointsPerWorker * size)]; // Local array for each thread
+
+        // Find points with the current tVal
+        int i;
+        #pragma omp parallel for reduction(+:currentSearchPointAmount)
+        for (i = 0; i < numberAllPoints; i++) {
+            if (currentSearchPointAmount >= (numPointsPerWorker * size))
+                continue; // Skip when this happens
             if (allWorkerPointsTcount[i].tVal == currentT) {
-                searchPoints[currentSearchPointAmount++] = allWorkerPointsTcount[i];
+                localSearchPoints[currentSearchPointAmount++] = allWorkerPointsTcount[i];
             }
-            if (currentSearchPointAmount >= (numPointsPerWorker * size))  
-                break;              
         }
+
+        // Check proximity criteria for each local point
+        #pragma omp parallel for
         for (int k = 0; k < currentSearchPointAmount; k++) {
-            int result = checkProximityCriteria(searchPoints[k], searchPoints, (currentSearchPointAmount), K, D);
+            if (currentSatisfiedInfoIndiciesAmount >= MAX_NUM_SATISFIED_POINTS)
+                continue;
+            int result = checkProximityCriteria(localSearchPoints[k], localSearchPoints, currentSearchPointAmount, K, D);
             if (result) {
                 int shouldADD = 1;
                 for (int r = 0; r < MAX_NUM_SATISFIED_POINTS; r++) {
-                    if (localSatisfiedInfos[j - myStartIndex].satisfiedIndices[r] == searchPoints[k].id){
+                    if (localSatisfiedInfos[j - myStartIndex].satisfiedIndices[r] == localSearchPoints[k].id){
                         shouldADD = 0;
                         break;
                     }
                 }
                 if (shouldADD)
-                    localSatisfiedInfos[j - myStartIndex].satisfiedIndices[currentSatisfiedInfoIndiciesAmount++] = searchPoints[k].id;
+                    localSatisfiedInfos[j - myStartIndex].satisfiedIndices[currentSatisfiedInfoIndiciesAmount++] = localSearchPoints[k].id;
             }
-            if (currentSatisfiedInfoIndiciesAmount >= MAX_NUM_SATISFIED_POINTS)   {
+            if (currentSatisfiedInfoIndiciesAmount == MAX_NUM_SATISFIED_POINTS)   {
                 localSatisfiedInfos[j - myStartIndex].shouldPrint = 1;
-                break;
             }
         }
     }
 
-    int sum = 0;
-    for (int i = 0; i < chunkSize; i++) {
-        if (localSatisfiedInfos[i].shouldPrint) {
-            printf("RANK: %d Points ", rank);
-            sum ++;
-            for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
-                if (localSatisfiedInfos[i].satisfiedIndices[k] != -1) {
-                    printf("pointID%d ", localSatisfiedInfos[i].satisfiedIndices[k]);
-                }
-            }
-            printf("satisfy Proximity Criteria at t = %.6f\n", localSatisfiedInfos[i].t);
-        }
-    }
-    printf("RANK: %d Points SUM: %d \n", rank, sum);
+
+    // int sum = 0;
+    // for (int i = 0; i < chunkSize; i++) {
+    //     if (localSatisfiedInfos[i].shouldPrint) {
+    //         printf("RANK: %d Points ", rank);
+    //         sum ++;
+    //         for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
+    //             if (localSatisfiedInfos[i].satisfiedIndices[k] != -1) {
+    //                 printf("pointID%d ", localSatisfiedInfos[i].satisfiedIndices[k]);
+    //             }
+    //         }
+    //         printf("satisfy Proximity Criteria at t = %.6f\n", localSatisfiedInfos[i].t);
+    //     }
+    // }
+    // printf("RANK: %d Points SUM: %d \n", rank, sum);
 
     
     // Send computed results back to the master using MPI_Send
@@ -284,7 +327,7 @@ int main(int argc, char* argv[]) {
     free(tValues);
 
     // Finalize MPI
-    fprintf(stderr, "rank: %d FINISHED\n", rank);
+    // fprintf(stderr, "rank: %d FINISHED\n", rank);
     MPI_Finalize();
 
     return 0;

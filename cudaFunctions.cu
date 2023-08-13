@@ -76,7 +76,6 @@ int performGPUComputation(Point* points, int numPoints, double* tValues, int tCo
         cudaFree(d_tValues);
         return 0;
     }
-
         
     // Copy points data from host to device
     cudaStatus = cudaMemcpy(d_finalPoints, finalPoints, numPoints * tCount *  sizeof(FinalPoint), cudaMemcpyHostToDevice);
@@ -103,9 +102,9 @@ int performGPUComputation(Point* points, int numPoints, double* tValues, int tCo
     // int numBlocks = (numPoints + threadsPerBlock - 1) / threadsPerBlock; // Calculate number of blocks needed to process all points
     int numBlocks = (tCount + threadsPerBlock) / threadsPerBlock; // Calculate number of blocks needed to process all points
     
-    printf("Launching GPU kernel...\n"); // TODO df delete this
-    printf("numPoints: %d, blockSize: %d\n", numPoints, threadsPerBlock);// TODO df delete this
-    printf("Launching GPU kernel with numBlocks: %d and threadsPerBlock: %d ...\n", numBlocks, threadsPerBlock);// TODO df delete this
+    // printf("Launching GPU kernel...\n"); // TODO df delete this
+    // printf("numPoints: %d, blockSize: %d\n", numPoints, threadsPerBlock);// TODO df delete this
+    // printf("Launching GPU kernel with numBlocks: %d and threadsPerBlock: %d ...\n", numBlocks, threadsPerBlock);// TODO df delete this
 
     printf("tValues:\n");
     for (int i = 0; i <= tCount; i++) {
@@ -151,6 +150,6 @@ int performGPUComputation(Point* points, int numPoints, double* tValues, int tCo
     cudaFree(d_points);
     cudaFree(d_tValues);
     cudaFree(d_finalPoints);
-    printf("GPU computation completed successfully.\n"); // TODO df delete this
+    // printf("GPU computation completed successfully.\n"); // TODO df delete this
     return 1; // Success
 }

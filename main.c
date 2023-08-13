@@ -114,8 +114,8 @@ int main(int argc, char* argv[]) {
     }
 
     //Both MASTER and WORKERS perform:
-    printValues(rank, points, numPointsPerWorker, tValues, tCount); // TODO df delete this
-    fprintf(stderr, "rank: %d, tCount: %d, numPointsPerWorker: %d\n", rank, tCount, numPointsPerWorker);
+    // printValues(rank, points, numPointsPerWorker, tValues, tCount); // TODO df delete this
+    // fprintf(stderr, "rank: %d, tCount: %d, numPointsPerWorker: %d\n", rank, tCount, numPointsPerWorker); // TODO df delete this
 
     // Allocate memory for a new array of points for each worker process
     FinalPoint* workerPointsTcount = (FinalPoint*)malloc(numPointsPerWorker * tCount * sizeof(FinalPoint));
@@ -133,22 +133,40 @@ int main(int argc, char* argv[]) {
         fprintf(stderr, "RANK: %d, N: %d, size: %d, K: %d\n", rank, N, size, K);
         MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
     }  
+
+
+    if (rank != MASTER)
+        MPI_Send(workerPointsTcount, numPointsPerWorker * tCount, MPI_BYTE, MASTER, 0, MPI_COMM_WORLD);
+
+    else {
+        size_t totalDataSize = size * numPointsPerWorker * tCount * sizeof(FinalPoint);  // Calculate the total size of data to receive
+        FinalPoint *allWorkerPointsTcount = (FinalPoint *)malloc(totalDataSize);  // Allocate memory to store worker points data
+        size_t dataPerWorkerSize = numPointsPerWorker * tCount * sizeof(FinalPoint);  // Calculate the size of data per worker
+        memcpy(allWorkerPointsTcount, workerPointsTcount, dataPerWorkerSize); // Copy the master's own workerPointsTcount to allWorkerPointsTcount
+        // Receive data from each worker
+        for (int source = 1; source < size; source++) {
+            MPI_Recv((char *)allWorkerPointsTcount + dataPerWorkerSize * source, dataPerWorkerSize, MPI_BYTE, source, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        }
+        // Broadcast the merged data to all worker processes
+        MPI_Bcast(allWorkerPointsTcount, numPointsPerWorker * tCount * size * sizeof(FinalPoint), MPI_BYTE, 0, MPI_COMM_WORLD);
+    }
+    // Receive the merged workerPointsTcount data using broadcast from the master process
+    MPI_Bcast(workerPointsTcount, numPointsPerWorker * tCount * sizeof(FinalPoint), MPI_BYTE, 0, MPI_COMM_WORLD);
+
     
     SatisfiedInfo satisfiedInfos[tCount + 1]; // Create an array to hold satisfiedInfos
     // Initialize the satisfiedInfos array
     for (int j = 0; j <= tCount; j++) {
         satisfiedInfos[j].t = DBL_MAX; // Initialize t value to maximum double value
-        for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
+        for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++)
             satisfiedInfos[j].satisfiedIndices[k] = (-1); // Initialize satisfiedIndices to -1
-            printf("hey : be(-1)please: %d\n", satisfiedInfos[j].satisfiedIndices[k]);
-        }
         satisfiedInfos[j].shouldPrint = 0;
     }
 
-    fprintf(stderr, "rank: %d, tCount: %d, numPointsPerWorker: %d\n", rank, tCount, numPointsPerWorker);
-    for (int i = 0; i < (numPointsPerWorker * tCount); i++) {
+    fprintf(stderr, "rank: %d, tCount: %d, numPointsPerWorker: %d\n", rank, tCount, numPointsPerWorker); // TODO df delete this
+    for (int i = 0; i < (numPointsPerWorker * tCount); i++) { // TODO df delete this
         printf("rank: %d workerPointsTcount %d:, id: %d, tVal: %.2f x = %.2f, y = %.2f\n", rank, i, workerPointsTcount[i].id, workerPointsTcount[i].tVal, workerPointsTcount[i].x, workerPointsTcount[i].y);
-    }
+    } // TODO df delete this
 
     // Perform Parallel Proximity Criteria Check using OpenMP
     // Perform Parallel Proximity Criteria Check using OpenMP

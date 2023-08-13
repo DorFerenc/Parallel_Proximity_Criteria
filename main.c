@@ -161,6 +161,7 @@ int main(int argc, char* argv[]) {
     }
 
     free(workerPointsTcount);
+    free(points);
     int myStartIndex = rank * (tCount / size);
     int myEndIndex = (rank + 1) * (tCount / size); // not inclusive (25/50/75/100) not (24/49/74/99)
     int chunkSize = myEndIndex - myStartIndex;
@@ -175,14 +176,18 @@ int main(int argc, char* argv[]) {
         localSatisfiedInfos[j].shouldPrint = 0;
     }
 
+    fprintf(stderr, "rank: %d got here\n", rank);
+
     // Allocate memory for a new array of points for each worker process
     FinalPoint* searchPoints = (FinalPoint*)malloc(numPointsPerWorker * size * sizeof(FinalPoint));
     if (searchPoints == NULL) {
         fprintf(stderr, "Memory allocation error\n");
         free(tValues); // Free previously allocated memory for tValues
-        free(points);
+        free(allWorkerPointsTcount);
         MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
     }
+
+    fprintf(stderr, "rank: %d got here also\n", rank);
 
     for (int j = myStartIndex; j < myEndIndex; j++) {
         double currentT = tValues[j];
@@ -212,19 +217,21 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    fprintf(stderr, "rank: %d YEP here aswell\n", rank);
     
-    for (int i = 0; i <= chunkSize; i++) {
-        if (localSatisfiedInfos[i].shouldPrint) {
-            printf("Points ");
-            for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
-                if (localSatisfiedInfos[i].satisfiedIndices[k] != -1) {
-                    printf("pointID%d ", localSatisfiedInfos[i].satisfiedIndices[k]);
-                }
-            }
-            printf("satisfy Proximity Criteria at t = %.6f\n", localSatisfiedInfos[i].t);
-        }
-    }
+    // for (int i = 0; i < chunkSize; i++) {
+    //     if (localSatisfiedInfos[i].shouldPrint) {
+    //         printf("Points ");
+    //         for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
+    //             if (localSatisfiedInfos[i].satisfiedIndices[k] != -1) {
+    //                 printf("pointID%d ", localSatisfiedInfos[i].satisfiedIndices[k]);
+    //             }
+    //         }
+    //         printf("satisfy Proximity Criteria at t = %.6f\n", localSatisfiedInfos[i].t);
+    //     }
+    // }
 
+    fprintf(stderr, "rank: %d redy for send recv\n", rank);
     
     // Send computed results back to the master using MPI_Send
     if (rank != MASTER)
@@ -233,13 +240,14 @@ int main(int argc, char* argv[]) {
         SatisfiedInfo** collectedSatisfiedInfos = (SatisfiedInfo**)malloc(size * sizeof(SatisfiedInfo*));
         if (collectedSatisfiedInfos == NULL) {
             fprintf(stderr, "Memory allocation error\n");
-            free(points);
+            free(searchPoints);
+            free(allWorkerPointsTcount);
             free(tValues);
             MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
         }
 
         for (int i = 0; i < size; i++) {
-            collectedSatisfiedInfos[i] = (SatisfiedInfo*)malloc((chunkSize + 1) * sizeof(SatisfiedInfo));
+            collectedSatisfiedInfos[i] = (SatisfiedInfo*)malloc((chunkSize) * sizeof(SatisfiedInfo));
             if (collectedSatisfiedInfos[i] == NULL) {
                 fprintf(stderr, "Memory allocation error\n");
                 // Free previously allocated memory
@@ -247,7 +255,8 @@ int main(int argc, char* argv[]) {
                     free(collectedSatisfiedInfos[j]);
                 }
                 free(collectedSatisfiedInfos);
-                free(points);
+                free(searchPoints);
+                free(allWorkerPointsTcount);
                 free(tValues);
                 MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
             }
@@ -255,7 +264,7 @@ int main(int argc, char* argv[]) {
 
         // Receive satisfiedInfos from worker processes
         for (int i = 1; i < size; i++) {
-            MPI_Recv(collectedSatisfiedInfos[i], (chunkSize + 1) * sizeof(SatisfiedInfo), MPI_BYTE, i, 0, MPI_COMM_WORLD, &status);
+            MPI_Recv(collectedSatisfiedInfos[i], (chunkSize) * sizeof(SatisfiedInfo), MPI_BYTE, i, 0, MPI_COMM_WORLD, &status);
         }
 
          // Combine results from all processes and write to the output file
@@ -266,7 +275,8 @@ int main(int argc, char* argv[]) {
                 free(collectedSatisfiedInfos[i]);
             }
             free(collectedSatisfiedInfos);
-            free(points);
+            free(allWorkerPointsTcount);
+            free(searchPoints);
             free(tValues);
             MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
         }
@@ -279,11 +289,12 @@ int main(int argc, char* argv[]) {
     }
 
     // Free allocated memory
-    free(workerPointsTcount);
-    free(points);
+    free(allWorkerPointsTcount);
+    free(searchPoints);
     free(tValues);
 
     // Finalize MPI
+    fprintf(stderr, "rank: %d FINISHEDv\n", rank);
     MPI_Finalize();
 
     return 0;

@@ -184,7 +184,6 @@ int main(int argc, char* argv[]) {
     // Initialize the satisfiedInfos array
     SatisfiedInfo localSatisfiedInfos[chunkSize]; // Create an array to hold localSatisfiedInfos
     for (int j = 0; j < chunkSize; j++) {
-        localSatisfiedInfos[j].t = 0.0; // Initialize t value to maximum double value
         for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++)
             localSatisfiedInfos[j].satisfiedIndices[k] = (-1); // Initialize satisfiedIndices to -1
         localSatisfiedInfos[j].shouldPrint = 0;
@@ -199,11 +198,9 @@ int main(int argc, char* argv[]) {
         MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
     }
 
-    // fprintf(stderr, "(numPointsPerWorker * size): %d\n", (numPointsPerWorker * size));
     for (int j = myStartIndex; j < myEndIndex; j++) {
         double currentT = tValues[j];
         localSatisfiedInfos[j - myStartIndex].t = currentT;
-        localSatisfiedInfos[j - myStartIndex].shouldPrint = 0;
         int currentSearchPointAmount = 0;
         int currentSatisfiedInfoIndiciesAmount = 0;
         for (int i = 0; i < numberAllPoints; i++) { //find all the points with the current tVal

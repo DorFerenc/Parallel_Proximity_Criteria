@@ -222,14 +222,16 @@ int main(int argc, char* argv[]) {
             if (result) {
                 fprintf(stderr, "Rank %d: OKOK? searchPoints[%d].id:%d, searchPoints[k].tVal:%lf \n", rank, k, searchPoints[k].id, searchPoints[k].tVal);
                 localSatisfiedInfos[j - myStartIndex].shouldPrint = 1;
+                int shouldADD = 1;
                 for (int r = 0; r < MAX_NUM_SATISFIED_POINTS; r++) {
                     if (localSatisfiedInfos[j - myStartIndex].satisfiedIndices[r] == searchPoints[k].id)
                     {
+                        shouldADD = 0;
                         localSatisfiedInfos[j - myStartIndex].shouldPrint = 0;
                         fprintf(stderr, "Rank %d: why? searchPoints[k].id:%d \n", rank, searchPoints[k].id);
                     }
                 }
-                if (localSatisfiedInfos[j - myStartIndex].shouldPrint == 1) {
+                if (shouldADD) {
                     localSatisfiedInfos[j - myStartIndex].satisfiedIndices[currentSatisfiedInfoIndiciesAmount] = searchPoints[k].id;
                     currentSatisfiedInfoIndiciesAmount++;
                 }

@@ -201,6 +201,7 @@ int main(int argc, char* argv[]) {
     for (int j = myStartIndex; j < myEndIndex; j++) {
         double currentT = tValues[j];
         localSatisfiedInfos[j - myStartIndex].t =currentT;
+        localSatisfiedInfos[j - myStartIndex].shouldPrint = 0;
         int currentSearchPointAmount = 0;
         int currentSatisfiedInfoIndiciesAmount = 0;
         for (int i = 0; i < numberAllPoints; i++) { //find all the points with the current tVal
@@ -220,7 +221,6 @@ int main(int argc, char* argv[]) {
             int result = checkProximityCriteria(searchPoints[k], searchPoints, (currentSearchPointAmount), K, D);
             if (result) {
                 fprintf(stderr, "Rank %d: OKOK? searchPoints[%d].id:%d, searchPoints[k].tVal:%lf \n", rank, k, searchPoints[k].id, searchPoints[k].tVal);
-                localSatisfiedInfos[j - myStartIndex].t = searchPoints[k].tVal;
                 localSatisfiedInfos[j - myStartIndex].shouldPrint = 1;
                 for (int r = 0; r < MAX_NUM_SATISFIED_POINTS; r++) {
                     if (localSatisfiedInfos[j - myStartIndex].satisfiedIndices[r] == searchPoints[k].id)

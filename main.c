@@ -199,7 +199,7 @@ int main(int argc, char* argv[]) {
         MPI_Abort(MPI_COMM_WORLD, 1); // Abort MPI with failure status
     }
 
-    fprintf(stderr, "(numPointsPerWorker * size): %d\n", (numPointsPerWorker * size));
+    // fprintf(stderr, "(numPointsPerWorker * size): %d\n", (numPointsPerWorker * size));
     for (int j = myStartIndex; j < myEndIndex; j++) {
         double currentT = tValues[j];
         localSatisfiedInfos[j - myStartIndex].t =currentT;
@@ -207,10 +207,10 @@ int main(int argc, char* argv[]) {
         int currentSearchPointAmount = 0;
         int currentSatisfiedInfoIndiciesAmount = 0;
         for (int i = 0; i < numberAllPoints; i++) { //find all the points with the current tVal
-            if (currentT == 0.000000) {
-                if (allWorkerPointsTcount[i].tVal == currentT) 
-                    printf("rank: %d WorkerPointsTcount[%d].tVal:%lf, id: %d \n", rank, i, allWorkerPointsTcount[i].tVal, allWorkerPointsTcount[i].id);
-            }
+            // if (currentT == 0.000000) {
+                // if (allWorkerPointsTcount[i].tVal == currentT) 
+                    // printf("rank: %d WorkerPointsTcount[%d].tVal:%lf, id: %d \n", rank, i, allWorkerPointsTcount[i].tVal, allWorkerPointsTcount[i].id);
+            // }
             if (allWorkerPointsTcount[i].tVal == currentT) {
                 searchPoints[currentSearchPointAmount].tVal = allWorkerPointsTcount[i].tVal;
                 searchPoints[currentSearchPointAmount].id = allWorkerPointsTcount[i].id;
@@ -224,7 +224,7 @@ int main(int argc, char* argv[]) {
         for (int k = 0; k < currentSearchPointAmount; k++) {
             int result = checkProximityCriteria(searchPoints[k], searchPoints, (currentSearchPointAmount), K, D);
             if (result) {
-                printf("****FOUND Rank %d: OKOK? searchPoints[%d].id:%d, searchPoints[k].tVal:%lf \n", rank, k, searchPoints[k].id, searchPoints[k].tVal);
+                // printf("****FOUND Rank %d: OKOK? searchPoints[%d].id:%d, searchPoints[k].tVal:%lf \n", rank, k, searchPoints[k].id, searchPoints[k].tVal);
                 // localSatisfiedInfos[j - myStartIndex].shouldPrint = 1;
                 int shouldADD = 1;
                 for (int r = 0; r < MAX_NUM_SATISFIED_POINTS; r++) {
@@ -232,12 +232,12 @@ int main(int argc, char* argv[]) {
                     {
                         shouldADD = 0;
                         localSatisfiedInfos[j - myStartIndex].shouldPrint = 0;
-                        printf("***NOT ADDED!!! RANK: %d: searchPoints[%d].id: %d, searchPoints[k].tVal:%lf\n", rank, k, searchPoints[k].id, searchPoints[k].tVal);
+                        // printf("***NOT ADDED!!! RANK: %d: searchPoints[%d].id: %d, searchPoints[k].tVal:%lf\n", rank, k, searchPoints[k].id, searchPoints[k].tVal);
                         break;
                     }
                 }
                 if (shouldADD) {
-                    printf("***ADDED RANK: %d: searchPoints[%d].id: %d, searchPoints[k].tVal:%lf\n", rank, k, searchPoints[k].id, searchPoints[k].tVal);
+                    // printf("***ADDED RANK: %d: searchPoints[%d].id: %d, searchPoints[k].tVal:%lf\n", rank, k, searchPoints[k].id, searchPoints[k].tVal);
                     localSatisfiedInfos[j - myStartIndex].satisfiedIndices[currentSatisfiedInfoIndiciesAmount] = searchPoints[k].id;
                     currentSatisfiedInfoIndiciesAmount++;
                 }
@@ -252,7 +252,7 @@ int main(int argc, char* argv[]) {
     
     for (int i = 0; i < chunkSize; i++) {
         if (localSatisfiedInfos[i].shouldPrint) {
-            printf("Points ");
+            printf("RANK: %d Points ", rank);
             for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
                 if (localSatisfiedInfos[i].satisfiedIndices[k] != -1) {
                     printf("pointID%d ", localSatisfiedInfos[i].satisfiedIndices[k]);

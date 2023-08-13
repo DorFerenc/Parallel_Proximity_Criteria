@@ -144,7 +144,7 @@ int main(int argc, char* argv[]) {
             fprintf(stderr, "Memory allocation error\n");
             free(tValues); // Free previously allocated memory for tValues
             free(points);
-            free(workerPointsTcount)
+            free(workerPointsTcount);
             MPI_Abort(MPI_COMM_WORLD, 1);
         }
         memcpy(allWorkerPointsTcount, workerPointsTcount, numPointsPerWorker * tCount * sizeof(FinalPoint));
@@ -160,7 +160,7 @@ int main(int argc, char* argv[]) {
             fprintf(stderr, "Memory allocation error\n");
             free(tValues); // Free previously allocated memory for tValues
             free(points);
-            free(workerPointsTcount)
+            free(workerPointsTcount);
             MPI_Abort(MPI_COMM_WORLD, 1);
         }
         MPI_Bcast(allWorkerPointsTcount, size * numPointsPerWorker * tCount * sizeof(FinalPoint), MPI_BYTE, MASTER, MPI_COMM_WORLD);

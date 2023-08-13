@@ -102,7 +102,7 @@ int isPointIDAlreadyAdded(int pointID, int *satisfiedIndices, int foundIndices) 
  * @param tCount Number of t values.
  * @return 1 if writing was successful, 0 if there was an error.
  */
-int writeResults(const char* filename, SatisfiedInfo* collectedSatisfiedInfos, int numWorkers, int chunkSize, int N, double* tValues, int tCount) {
+int writeResults(const char* filename, SatisfiedInfo* collectedSatisfiedInfos, int size) {
     FILE* file = fopen(filename, "w");
     if (file == NULL) {
         fprintf(stderr, "Error opening output file\n");
@@ -111,20 +111,17 @@ int writeResults(const char* filename, SatisfiedInfo* collectedSatisfiedInfos, i
 
     int foundCount = 0;
 
-    for (int j = 0; j < tCount; j++) {
-        for (int worker = 0; worker < numWorkers; worker++) {
-            SatisfiedInfo* currentWorkerInfo = collectedSatisfiedInfos + (worker * chunkSize);
-            if (currentWorkerInfo[j].shouldPrint) {
-                fprintf(file, "Points");
-                for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
-                    int idx = currentWorkerInfo[j].satisfiedIndices[k];
-                    if (idx != -1) {
-                        fprintf(file, " pointID%d", idx);
-                    }
+    for (int j = 0; j < size; j++) {
+        if (collectedSatisfiedInfos[j].shouldPrint) {
+            fprintf(file, "Points");
+            for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++) {
+                int idx = collectedSatisfiedInfos[j].satisfiedIndices[k];
+                if (idx != -1) {
+                    fprintf(file, " pointID%d", idx);
                 }
-                fprintf(file, " satisfy Proximity Criteria at t = %.6f\n", currentWorkerInfo[j].t);
-                foundCount++;
             }
+            fprintf(file, " satisfy Proximity Criteria at t = %.6f\n", collectedSatisfiedInfos[j].t);
+            foundCount++;
         }
     }
 

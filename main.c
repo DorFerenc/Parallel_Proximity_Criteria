@@ -163,13 +163,13 @@ int main(int argc, char* argv[]) {
     int chunkSize = myEndIndex - myStartIndex;
     double numberAllPoints = (size * numPointsPerWorker * tCount);
     
-    SatisfiedInfo localSatisfiedInfos[chunkSize]; // Create an array to hold satisfiedInfos
+    SatisfiedInfo localSatisfiedInfos[chunkSize]; // Create an array to hold localSatisfiedInfos
     // Initialize the satisfiedInfos array
     for (int j = 0; j <= chunkSize; j++) {
-        satisfiedInfos[j].t = DBL_MAX; // Initialize t value to maximum double value
+        localSatisfiedInfos[j].t = DBL_MAX; // Initialize t value to maximum double value
         for (int k = 0; k < MAX_NUM_SATISFIED_POINTS; k++)
-            satisfiedInfos[j].satisfiedIndices[k] = (-1); // Initialize satisfiedIndices to -1
-        satisfiedInfos[j].shouldPrint = 0;
+            localSatisfiedInfo[j].satisfiedIndices[k] = (-1); // Initialize satisfiedIndices to -1
+        localSatisfiedInfos[j].shouldPrint = 0;
     }
 
     // Allocate memory for a new array of points for each worker process
@@ -183,15 +183,29 @@ int main(int argc, char* argv[]) {
 
     for (int j = myStartIndex, j < myEndIndex; j++) {
         double currentT = tValues[j];
-            int currentSearchPoint = 0;
+        localSatisfiedInfos[j].t =currentT
+        int currentSearchPointAmount = 0;
+        int currentSatisfiedInfoIndiciesAmount = 0;
+
         for (int i = 0; i < numberAllPoints; i++) { //find all the points with the current tVal
             if (allWorkerPointsTcount[i].tVal == currentT) 
-                searchPoints[currentSearchPoint++] = allWorkerPointsTcount[i];
-            if (currentSearchPoint >= (numPointsPerWorker * size))  
+                searchPoints[currentSearchPointAmount++] = allWorkerPointsTcount[i];
+            if (currentSearchPointAmount >= (numPointsPerWorker * size))  
                 break;              
         }
-        for (int k = 0; k < currentSearchPoint; k++) {
-            int result = checkProximityCriteria(searchPoints[k], allWorkerPointsTcount, (size * numPointsPerWorker * tCount), K, D);
+        for (int k = 0; k < currentSearchPointAmount; k++) {
+            int shouldSave = 1;
+            int result = checkProximityCriteria(searchPoints[k], searchPoints, (currentSearchPointAmount), K, D);
+            if (result) {
+                for (int r = 0; r < MAX_NUM_SATISFIED_POINTS; r++) {
+                    if (localSatisfiedInfo[j].satisfiedIndices[r] == searchPoints[k].id)
+                        shouldSave = 0;
+                }
+                if (shouldSave)
+                    localSatisfiedInfo[j].satisfiedIndices[currentSatisfiedInfoIndiciesAmount++] = searchPoints[k].id;
+            }
+            if (currentSatisfiedInfoIndiciesAmount >= MAX_NUM_SATISFIED_POINTS)  
+                break;
         }
 
     }

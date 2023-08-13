@@ -280,7 +280,7 @@ int main(int argc, char* argv[]) {
         for (int i = 1; i < size; i++) {
             SatisfiedInfo receivedData[chunkSize];
             MPI_Recv(receivedData, chunkSize * sizeof(SatisfiedInfo), MPI_BYTE, i, 0, MPI_COMM_WORLD, &status);
-            for (int j = (i * chunkSize); j < ((i + 1) * chunkSize); j++)
+            for (int j = 0; j < chunkSize; j++)
                 if (receivedData[j].shouldPrint) 
                     collectedSatisfiedInfos[currentPrintIndex++] = receivedData[j];
         }

@@ -22,4 +22,4 @@ run:
 
 runOn2:
 # Run the executable with 2 processes using a machinefile
-	mpiexec -np 2 -machinefile mf -map-by node ./mpiCudaOpemMP
+	mpiexec -np 4 -machinefile ips.txt -map-by node ./mpiCudaOpemMP

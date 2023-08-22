@@ -9,7 +9,7 @@
 #include "myProto.h"
 #include <cstring>
 
-#define FILENAME "Input.txt"
+#define FILENAME "inputBIG.txt"
 #define MASTER 0
 
 void printValues(int rank, Point* points, int numPointsPerWorker, double* tValues, int tCount) {

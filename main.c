@@ -232,6 +232,16 @@ int main(int argc, char* argv[]) {
 
     // Send computed results back to the master using MPI_Send
     if (rank != MASTER) {
+
+        // Print received data in worker processes
+        printf("Worker %d received data:\n", rank);
+        printf("  numPointsPerWorker: %d, K: %d, D: %.2f, tCount: %d\n", numPointsPerWorker, K, D, tCount);
+        for (int j = 0; j <= tCount; j++) {
+            printf("  tValues[%d] = %.6f\n", j, tValues[j]);
+        }
+        printf("\n");
+    
+
         MPI_Send(localSatisfiedInfos, chunkSize * sizeof(SatisfiedInfo), MPI_BYTE, MASTER, 0, MPI_COMM_WORLD);  // Send the satisfiedInfos array to the master
     }
     else {
@@ -250,6 +260,20 @@ int main(int argc, char* argv[]) {
             for (int j = 0; j < chunkSize; j++)
                 if (receivedData[j].shouldPrint) 
                     collectedSatisfiedInfos[currentPrintIndex++] = receivedData[j];
+        }
+
+        // Print gathered data on the master
+        printf("Master gathered data:\n");
+        for (int i = 0; i < size; i++) {
+            printf("  Gathered data from worker %d:\n", i + 1);
+            for (int j = 0; j < numPointsPerWorker * tCount; j++) {
+                printf("  allWorkerPointsTcount[%d]: tVal=%.6f, x=%.2f, y=%.2f\n",
+                    i * numPointsPerWorker * tCount + j,
+                    allWorkerPointsTcount[i * numPointsPerWorker * tCount + j].tVal,
+                    allWorkerPointsTcount[i * numPointsPerWorker * tCount + j].x,
+                    allWorkerPointsTcount[i * numPointsPerWorker * tCount + j].y);
+            }
+            printf("\n");
         }
 
          // Combine results from all processes and write to the output file

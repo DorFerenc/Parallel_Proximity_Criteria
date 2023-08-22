@@ -221,11 +221,18 @@ int main(int argc, char* argv[]) {
                         break;
                     }
                 }
-                if (shouldADD)
-                    localSatisfiedInfos[j - myStartIndex].satisfiedIndices[currentSatisfiedInfoIndiciesAmount++] = localSearchPoints[k].id;
+                if (shouldADD) {
+                    #pragma omp critical
+                    {
+                        localSatisfiedInfos[j - myStartIndex].satisfiedIndices[currentSatisfiedInfoIndiciesAmount++] = localSearchPoints[k].id;
+                    }
+                }
             }
             if (currentSatisfiedInfoIndiciesAmount == MAX_NUM_SATISFIED_POINTS)   {
-                localSatisfiedInfos[j - myStartIndex].shouldPrint = 1;
+                #pragma omp critical
+                {
+                    localSatisfiedInfos[j - myStartIndex].shouldPrint = 1;
+                }
             }
         }
     }
@@ -258,8 +265,10 @@ int main(int argc, char* argv[]) {
             SatisfiedInfo receivedData[chunkSize];
             MPI_Recv(receivedData, chunkSize * sizeof(SatisfiedInfo), MPI_BYTE, i, 0, MPI_COMM_WORLD, &status);
             for (int j = 0; j < chunkSize; j++)
-                if (receivedData[j].shouldPrint) 
+                if (receivedData[j].shouldPrint) {
                     collectedSatisfiedInfos[currentPrintIndex++] = receivedData[j];
+                    printf("YES COUNT ME currentPrintIndex: %d\n", currentPrintIndex);
+                }
         }
 
         // Print gathered data on the master
@@ -275,6 +284,7 @@ int main(int argc, char* argv[]) {
             }
             printf("\n");
         }
+        printf("currentPrintIndex: %d\n", currentPrintIndex);
 
          // Combine results from all processes and write to the output file
         if (!writeResults("Output.txt", collectedSatisfiedInfos, currentPrintIndex)) {

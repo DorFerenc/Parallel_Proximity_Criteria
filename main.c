@@ -221,34 +221,17 @@ int main(int argc, char* argv[]) {
                         break;
                     }
                 }
-                if (shouldADD) {
-                    #pragma omp critical
-                    {
-                        localSatisfiedInfos[j - myStartIndex].satisfiedIndices[currentSatisfiedInfoIndiciesAmount++] = localSearchPoints[k].id;
-                    }
-                }
+                if (shouldADD)
+                    localSatisfiedInfos[j - myStartIndex].satisfiedIndices[currentSatisfiedInfoIndiciesAmount++] = localSearchPoints[k].id;
             }
             if (currentSatisfiedInfoIndiciesAmount == MAX_NUM_SATISFIED_POINTS)   {
-                #pragma omp critical
-                {
-                    localSatisfiedInfos[j - myStartIndex].shouldPrint = 1;
-                }
+                localSatisfiedInfos[j - myStartIndex].shouldPrint = 1;
             }
         }
     }
 
     // Send computed results back to the master using MPI_Send
     if (rank != MASTER) {
-
-        // Print received data in worker processes
-        printf("Worker %d received data:\n", rank);
-        printf("  numPointsPerWorker: %d, K: %d, D: %.2f, tCount: %d\n", numPointsPerWorker, K, D, tCount);
-        for (int j = 0; j <= tCount; j++) {
-            printf("  tValues[%d] = %.6f\n", j, tValues[j]);
-        }
-        printf("\n");
-    
-
         MPI_Send(localSatisfiedInfos, chunkSize * sizeof(SatisfiedInfo), MPI_BYTE, MASTER, 0, MPI_COMM_WORLD);  // Send the satisfiedInfos array to the master
     }
     else {
@@ -265,26 +248,9 @@ int main(int argc, char* argv[]) {
             SatisfiedInfo receivedData[chunkSize];
             MPI_Recv(receivedData, chunkSize * sizeof(SatisfiedInfo), MPI_BYTE, i, 0, MPI_COMM_WORLD, &status);
             for (int j = 0; j < chunkSize; j++)
-                if (receivedData[j].shouldPrint) {
+                if (receivedData[j].shouldPrint) 
                     collectedSatisfiedInfos[currentPrintIndex++] = receivedData[j];
-                    printf("YES COUNT ME currentPrintIndex: %d\n", currentPrintIndex);
-                }
         }
-
-        // Print gathered data on the master
-        printf("Master gathered data:\n");
-        for (int i = 0; i < size; i++) {
-            printf("  Gathered data from worker %d:\n", i + 1);
-            for (int j = 0; j < numPointsPerWorker * tCount; j++) {
-                printf("  allWorkerPointsTcount[%d]: tVal=%.6f, x=%.2f, y=%.2f\n",
-                    i * numPointsPerWorker * tCount + j,
-                    allWorkerPointsTcount[i * numPointsPerWorker * tCount + j].tVal,
-                    allWorkerPointsTcount[i * numPointsPerWorker * tCount + j].x,
-                    allWorkerPointsTcount[i * numPointsPerWorker * tCount + j].y);
-            }
-            printf("\n");
-        }
-        printf("currentPrintIndex: %d\n", currentPrintIndex);
 
          // Combine results from all processes and write to the output file
         if (!writeResults("Output.txt", collectedSatisfiedInfos, currentPrintIndex)) {
